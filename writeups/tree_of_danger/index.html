@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  
+    <title>Tree of danger - [HTB UNICTF 2021 - Qualifiers] :: Hacklagr0y</title>
+  
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="This challenge was about escaping a parser using the AST module." />
+<meta name="keywords" content="" />
+<meta name="robots" content="noodp" />
+<link rel="canonical" href="https://alagroy-42.github.io/writeups/tree_of_danger/" />
+
+
+
+
+<link rel="stylesheet" href="https://alagroy-42.github.io/assets/style.css">
+
+  <link rel="stylesheet" href="https://alagroy-42.github.io/assets/red.css">
+
+
+
+
+
+
+<link rel="apple-touch-icon" href="https://alagroy-42.github.io/img/apple-touch-icon-192x192.png">
+
+  <link rel="shortcut icon" href="https://alagroy-42.github.io/img/favicon/red.png">
+
+
+
+<meta name="twitter:card" content="summary" />
+
+  
+    <meta name="twitter:site" content="" />
+  
+    <meta name="twitter:creator" content="alagroy-" />
+
+
+
+<meta property="og:locale" content="en" />
+<meta property="og:type" content="article" />
+<meta property="og:title" content="Tree of danger - [HTB UNICTF 2021 - Qualifiers]">
+<meta property="og:description" content="This challenge was about escaping a parser using the AST module." />
+<meta property="og:url" content="https://alagroy-42.github.io/writeups/tree_of_danger/" />
+<meta property="og:site_name" content="Hacklagr0y" />
+
+  
+    <meta property="og:image" content="https://alagroy-42.github.io/img/favicon/red.png">
+  
+
+<meta property="og:image:width" content="2048">
+<meta property="og:image:height" content="1024">
+
+
+  <meta property="article:published_time" content="2022-06-14 14:53:57 &#43;0200 CEST" />
+
+
+
+
+
+
+
+
+
+
+
+
+</head>
+<body class="red">
+
+
+<div class="container center headings--one-size">
+
+  <header class="header">
+  <div class="header__inner">
+    <div class="header__logo">
+      <a href="https://alagroy-42.github.io/">
+  <div class="logo">
+    Home
+  </div>
+</a>
+
+    </div>
+    
+      <div class="menu-trigger">menu</div>
+    
+  </div>
+  
+    <nav class="menu">
+  <ul class="menu__inner menu__inner--desktop">
+    
+      
+        
+          <li><a href="">About</a></li>
+        
+      
+        
+          <li><a href="/ctfs/">CTFs</a></li>
+        
+      
+        
+          <li><a href="/malware">Malware</a></li>
+        
+      
+        
+          <li><a href="/writeups">Writeups</a></li>
+        
+      
+      
+    
+
+    
+  </ul>
+
+  <ul class="menu__inner menu__inner--mobile">
+    
+      
+        <li><a href="">About</a></li>
+      
+    
+      
+        <li><a href="/ctfs/">CTFs</a></li>
+      
+    
+      
+        <li><a href="/malware">Malware</a></li>
+      
+    
+      
+        <li><a href="/writeups">Writeups</a></li>
+      
+    
+    
+  </ul>
+</nav>
+
+  
+</header>
+
+
+  <div class="content">
+    
+<div class="post">
+  <h1 class="post-title">
+    <a href="https://alagroy-42.github.io/writeups/tree_of_danger/">Tree of danger - [HTB UNICTF 2021 - Qualifiers]</a></h1>
+  <div class="post-meta">
+    
+      <span class="post-date">
+        2022-06-14
+        
+      </span>
+    
+    
+      <span class="post-author">:: alagroy-</span>
+    
+    
+  </div>
+
+  
+  <span class="post-tags">
+    
+    #<a href="https://alagroy-42.github.io/tags/misc/">Misc</a>&nbsp;
+    
+    #<a href="https://alagroy-42.github.io/tags/medium/">Medium</a>&nbsp;
+    
+    #<a href="https://alagroy-42.github.io/tags/pyjail/">Pyjail</a>&nbsp;
+    
+    #<a href="https://alagroy-42.github.io/tags/code-vulnerability/">Code vulnerability</a>&nbsp;
+    
+  </span>
+  
+  
+
+
+  
+
+  <div class="post-content"><div>
+        <h2 id="the-challenge">The Challenge<a href="#the-challenge" class="hanchor" ariaLabel="Anchor">&#8983;</a> </h2>
+
+
+
+  <div class="collapsable-code">
+    <input id="1" type="checkbox"  />
+    <label for="1">
+      <span class="collapsable-code__language">python</span>
+      <span class="collapsable-code__title">util.py</span>
+      <span class="collapsable-code__toggle" data-label-expand="Show" data-label-collapse="Hide"></span>
+    </label>
+    <pre class="language-python" ><code>
+#!/usr/bin/env python3.10
+
+import ast
+import math
+from typing import Union
+
+
+def is_expression_safe(node: Union[ast.Expression, ast.AST]) -&gt; bool:
+    match type(node):
+        case ast.Constant:
+            return True
+        case ast.List | ast.Tuple | ast.Set:
+            return is_sequence_safe(node)
+        case ast.Dict:
+            return is_dict_safe(node)
+        case ast.Name:
+            return node.id == &#34;math&#34; and isinstance(node.ctx, ast.Load)
+        case ast.UnaryOp:
+            return is_expression_safe(node.operand)
+        case ast.BinOp:
+            return is_expression_safe(node.left) and is_expression_safe(node.right)
+        case ast.Call:
+            return is_call_safe(node)
+        case ast.Attribute:
+            return is_expression_safe(node.value)
+        case _:
+            return False
+
+
+def is_sequence_safe(node: Union[ast.List, ast.Tuple, ast.Set]):
+    return all(map(is_expression_safe, node.elts))
+
+
+def is_dict_safe(node: ast.Dict) -&gt; bool:
+    for k, v in zip(node.keys, node.values):
+        if not is_expression_safe(k) and is_expression_safe(v):
+            return False
+    return True
+
+
+def is_call_safe(node: ast.Call) -&gt; bool:
+    if not is_expression_safe(node.func):
+        return False
+    if not all(map(is_expression_safe, node.args)):
+        return False
+    if node.keywords:
+        return False
+    return True
+
+
+def is_safe(expr: str) -&gt; bool:
+    for bad in [&#39;_&#39;]:
+        if bad in expr:
+            # Just in case!
+            return False
+    return is_expression_safe(ast.parse(expr, mode=&#39;eval&#39;).body)
+
+
+if __name__ == &#34;__main__&#34;:
+    print(&#34;Welcome to SafetyCalc (tm)!\n&#34;
+          &#34;Note: SafetyCorp are not liable for any accidents that may occur while using SafetyCalc&#34;)
+    while True:
+        ex = input(&#34;&gt; &#34;)
+        if is_safe(ex):
+            try:
+                print(eval(ex))
+            except Exception as e:
+                print(f&#34;Something bad happened! {e}&#34;)
+        else:
+            print(&#34;Unsafe command detected! The snake approaches...&#34;)
+            exit(-1)
+
+</code></pre>
+  </div>
+
+
+<p>This Python script is gonna interpret python code with the <code>eval</code> function after doing some parsing with the AST module. The parsing is gonna make sure that every component of the evaluated expression is safe. Function calls are only considered safe if they are part of the <code>math</code> module. After reading the <code>math</code> documentation, we realized that there was no way of doing nasty things with any function so we decided to try to bypass the AST checks.</p>
+<h3 id="the-resolution">The Resolution<a href="#the-resolution" class="hanchor" ariaLabel="Anchor">&#8983;</a> </h3>
+<p><img src="/tree_source_code.png" alt="vuln_func_code"></p>
+<p>In this function, the if statement line 37 doesn&rsquo;t take into account operator precedence in Python, since <code>not</code> has a higher precedence than <code>and</code>, <code>not</code> only applies to the key verification and not to the value verification. If it returns <code>True</code>, then the value of the dictionary is not gonna be checked. Thanks to that vulnerability, we can embed the open symbol in the dictionary.</p>
+<p><img src="/tree_embedded.png" alt="vuln_func_code"></p>
+<p>Function calls are sanitized with a check on <code>ast.Name</code> values which checks any normal function call but not class methods that are considered by the AST module as <code>ast.Attribute</code>. Dereferencing a dictionary by calling directly the value is an <code>ast.Subscript</code> type of operation which returns <code>False</code>. We then have to call <code>dictionary.get</code> to get <code>open</code> and then call it on <code>flag.txt</code>. Once the file is opened, we simply need to add the read method to get the content of it.</p>
+<p><img src="/tree_flag.png" alt="vuln_func_code"></p>
+
+      </div></div>
+
+  
+
+  
+  
+
+  
+</div>
+
+  </div>
+
+  
+    <footer class="footer">
+  <div class="footer__inner">
+    
+      <div class="copyright">
+        <span>© 2022 Powered by <a href="http://gohugo.io">Hugo</a></span>
+    
+        <span>:: Theme made by <a href="https://twitter.com/panr">panr</a></span>
+      </div>
+  </div>
+</footer>
+
+<script src="https://alagroy-42.github.io/assets/main.js"></script>
+<script src="https://alagroy-42.github.io/assets/prism.js"></script>
+
+
+
+
+
+
+
+  
+</div>
+
+</body>
+</html>

@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Misc on Hacklagr0y</title>
+    <link>https://alagroy-42.github.io/tags/misc/</link>
+    <description>Recent content in Misc on Hacklagr0y</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <lastBuildDate>Tue, 14 Jun 2022 14:53:57 +0200</lastBuildDate><atom:link href="https://alagroy-42.github.io/tags/misc/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Tree of danger - [HTB UNICTF 2021 - Qualifiers]</title>
+      <link>https://alagroy-42.github.io/writeups/tree_of_danger/</link>
+      <pubDate>Tue, 14 Jun 2022 14:53:57 +0200</pubDate>
+      
+      <guid>https://alagroy-42.github.io/writeups/tree_of_danger/</guid>
+      <description>The Challenge python util.py #!/usr/bin/env python3.10 import ast import math from typing import Union def is_expression_safe(node: Union[ast.Expression, ast.AST]) -&amp;gt; bool: match type(node): case ast.Constant: return True case ast.List | ast.Tuple | ast.Set: return is_sequence_safe(node) case ast.Dict: return is_dict_safe(node) case ast.Name: return node.id == &amp;#34;math&amp;#34; and isinstance(node.ctx, ast.Load) case ast.UnaryOp: return is_expression_safe(node.operand) case ast.BinOp: return is_expression_safe(node.left) and is_expression_safe(node.right) case ast.Call: return is_call_safe(node) case ast.Attribute: return is_expression_safe(node.value) case _: return False def is_sequence_safe(node: Union[ast.</description>
+      <content>&lt;h2 id=&#34;the-challenge&#34;&gt;The Challenge&lt;/h2&gt;
+
+
+
+  &lt;div class=&#34;collapsable-code&#34;&gt;
+    &lt;input id=&#34;1&#34; type=&#34;checkbox&#34;  /&gt;
+    &lt;label for=&#34;1&#34;&gt;
+      &lt;span class=&#34;collapsable-code__language&#34;&gt;python&lt;/span&gt;
+      &lt;span class=&#34;collapsable-code__title&#34;&gt;util.py&lt;/span&gt;
+      &lt;span class=&#34;collapsable-code__toggle&#34; data-label-expand=&#34;Show&#34; data-label-collapse=&#34;Hide&#34;&gt;&lt;/span&gt;
+    &lt;/label&gt;
+    &lt;pre class=&#34;language-python&#34; &gt;&lt;code&gt;
+#!/usr/bin/env python3.10
+
+import ast
+import math
+from typing import Union
+
+
+def is_expression_safe(node: Union[ast.Expression, ast.AST]) -&amp;gt; bool:
+    match type(node):
+        case ast.Constant:
+            return True
+        case ast.List | ast.Tuple | ast.Set:
+            return is_sequence_safe(node)
+        case ast.Dict:
+            return is_dict_safe(node)
+        case ast.Name:
+            return node.id == &amp;#34;math&amp;#34; and isinstance(node.ctx, ast.Load)
+        case ast.UnaryOp:
+            return is_expression_safe(node.operand)
+        case ast.BinOp:
+            return is_expression_safe(node.left) and is_expression_safe(node.right)
+        case ast.Call:
+            return is_call_safe(node)
+        case ast.Attribute:
+            return is_expression_safe(node.value)
+        case _:
+            return False
+
+
+def is_sequence_safe(node: Union[ast.List, ast.Tuple, ast.Set]):
+    return all(map(is_expression_safe, node.elts))
+
+
+def is_dict_safe(node: ast.Dict) -&amp;gt; bool:
+    for k, v in zip(node.keys, node.values):
+        if not is_expression_safe(k) and is_expression_safe(v):
+            return False
+    return True
+
+
+def is_call_safe(node: ast.Call) -&amp;gt; bool:
+    if not is_expression_safe(node.func):
+        return False
+    if not all(map(is_expression_safe, node.args)):
+        return False
+    if node.keywords:
+        return False
+    return True
+
+
+def is_safe(expr: str) -&amp;gt; bool:
+    for bad in [&amp;#39;_&amp;#39;]:
+        if bad in expr:
+            # Just in case!
+            return False
+    return is_expression_safe(ast.parse(expr, mode=&amp;#39;eval&amp;#39;).body)
+
+
+if __name__ == &amp;#34;__main__&amp;#34;:
+    print(&amp;#34;Welcome to SafetyCalc (tm)!\n&amp;#34;
+          &amp;#34;Note: SafetyCorp are not liable for any accidents that may occur while using SafetyCalc&amp;#34;)
+    while True:
+        ex = input(&amp;#34;&amp;gt; &amp;#34;)
+        if is_safe(ex):
+            try:
+                print(eval(ex))
+            except Exception as e:
+                print(f&amp;#34;Something bad happened! {e}&amp;#34;)
+        else:
+            print(&amp;#34;Unsafe command detected! The snake approaches...&amp;#34;)
+            exit(-1)
+
+&lt;/code&gt;&lt;/pre&gt;
+  &lt;/div&gt;
+
+
+&lt;p&gt;This Python script is gonna interpret python code with the &lt;code&gt;eval&lt;/code&gt; function after doing some parsing with the AST module. The parsing is gonna make sure that every component of the evaluated expression is safe. Function calls are only considered safe if they are part of the &lt;code&gt;math&lt;/code&gt; module. After reading the &lt;code&gt;math&lt;/code&gt; documentation, we realized that there was no way of doing nasty things with any function so we decided to try to bypass the AST checks.&lt;/p&gt;
+&lt;h3 id=&#34;the-resolution&#34;&gt;The Resolution&lt;/h3&gt;
+&lt;p&gt;&lt;img src=&#34;https://alagroy-42.github.io/tree_source_code.png&#34; alt=&#34;vuln_func_code&#34;&gt;&lt;/p&gt;
+&lt;p&gt;In this function, the if statement line 37 doesn&amp;rsquo;t take into account operator precedence in Python, since &lt;code&gt;not&lt;/code&gt; has a higher precedence than &lt;code&gt;and&lt;/code&gt;, &lt;code&gt;not&lt;/code&gt; only applies to the key verification and not to the value verification. If it returns &lt;code&gt;True&lt;/code&gt;, then the value of the dictionary is not gonna be checked. Thanks to that vulnerability, we can embed the open symbol in the dictionary.&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;https://alagroy-42.github.io/tree_embedded.png&#34; alt=&#34;vuln_func_code&#34;&gt;&lt;/p&gt;
+&lt;p&gt;Function calls are sanitized with a check on &lt;code&gt;ast.Name&lt;/code&gt; values which checks any normal function call but not class methods that are considered by the AST module as &lt;code&gt;ast.Attribute&lt;/code&gt;. Dereferencing a dictionary by calling directly the value is an &lt;code&gt;ast.Subscript&lt;/code&gt; type of operation which returns &lt;code&gt;False&lt;/code&gt;. We then have to call &lt;code&gt;dictionary.get&lt;/code&gt; to get &lt;code&gt;open&lt;/code&gt; and then call it on &lt;code&gt;flag.txt&lt;/code&gt;. Once the file is opened, we simply need to add the read method to get the content of it.&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;https://alagroy-42.github.io/tree_flag.png&#34; alt=&#34;vuln_func_code&#34;&gt;&lt;/p&gt;
+</content>
+    </item>
+    
+  </channel>
+</rss>

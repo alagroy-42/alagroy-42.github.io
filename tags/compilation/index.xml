@@ -1,0 +1,443 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Compilation on Hacklagr0y</title>
+    <link>https://alagroy-42.github.io/tags/compilation/</link>
+    <description>Recent content in Compilation on Hacklagr0y</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <lastBuildDate>Tue, 14 Jun 2022 15:42:52 +0200</lastBuildDate><atom:link href="https://alagroy-42.github.io/tags/compilation/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Mechanical Madness - [HTB UNICTF 2021 - Qualifiers]</title>
+      <link>https://alagroy-42.github.io/writeups/mechanical_madness/</link>
+      <pubDate>Tue, 14 Jun 2022 15:42:52 +0200</pubDate>
+      
+      <guid>https://alagroy-42.github.io/writeups/mechanical_madness/</guid>
+      <description>The Challenge For this challenge we had the following files :
+cpu.circ (A very big XML file that describe the processor) nasm program.asm v2.0 raw 10000a 100101 10100 130000 100101 e0000 40000 nasm program.asm :start movl ax, 10 :sub1 movl bx, 1 sub bx cmp ax, ax movl bx, :sub1 jnz rst nasm program.asm :start movl cx, 10 clr movl bx, 1 movl dx, 0 mmiv 0x0, dx movl bx, :sub4 call bx, 0 mmov ax, 0x0 movl bx, :sub5 call bx, 0 :sub1 movl bx, 1 movl dx, 0 push dx, 0 movl bx, :sub5 call bx, 0 movl bx, 1 sub bx, 0 cmp ax, ax movl bx, :sub1 jnz movl bx, :sub4 call bx, 0 :sub2 movl bx, 0 mmiv 0x1, bx mmiv 0x2, bx :sub3 pop ax, 0 movl bx, 1 movl dx, 0 movl bx, :sub5 call bx, 0 mmov bx, 0x1 msk mmiv 0x1, bx mmov bx, 0x2 mskb mmiv 0x2, bx movl ax, 0xff cmp bx, ax movl bx, :sub3 jl movl bx, 0 mmov dx, 0x1 movl cx, 1 movl cx, 0 movl bx, :sub2 jmp bx, 0 :sub4 movl ax, 0x05 movl bx, :sub5 call bx, 0 movl bx, 1 sub bx, 0 cmp ax, ax movl bx, :sub4&amp;#43;1 jnz ret :sub5 movl cx, 4 movl cx, 0 ret Processor Analysis Once we open the cpu.</description>
+      <content>&lt;h2 id=&#34;the-challenge&#34;&gt;The Challenge&lt;/h2&gt;
+&lt;p&gt;For this challenge we had the following files :&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://alagroy-42.github.io/writeups/mechanical_madness/cpu.circ.xml&#34;&gt;cpu.circ&lt;/a&gt; (A very big XML file that describe the processor)
+
+
+
+  &lt;div class=&#34;collapsable-code&#34;&gt;
+    &lt;input id=&#34;1&#34; type=&#34;checkbox&#34;  /&gt;
+    &lt;label for=&#34;1&#34;&gt;
+      &lt;span class=&#34;collapsable-code__language&#34;&gt;nasm&lt;/span&gt;
+      &lt;span class=&#34;collapsable-code__title&#34;&gt;program.asm&lt;/span&gt;
+      &lt;span class=&#34;collapsable-code__toggle&#34; data-label-expand=&#34;Show&#34; data-label-collapse=&#34;Hide&#34;&gt;&lt;/span&gt;
+    &lt;/label&gt;
+    &lt;pre class=&#34;language-nasm&#34; &gt;&lt;code&gt;
+v2.0 raw
+10000a 100101 10100 130000 100101 e0000 40000 
+&lt;/code&gt;&lt;/pre&gt;
+  &lt;/div&gt;
+
+
+
+
+
+  &lt;div class=&#34;collapsable-code&#34;&gt;
+    &lt;input id=&#34;2&#34; type=&#34;checkbox&#34;  /&gt;
+    &lt;label for=&#34;2&#34;&gt;
+      &lt;span class=&#34;collapsable-code__language&#34;&gt;nasm&lt;/span&gt;
+      &lt;span class=&#34;collapsable-code__title&#34;&gt;program.asm&lt;/span&gt;
+      &lt;span class=&#34;collapsable-code__toggle&#34; data-label-expand=&#34;Show&#34; data-label-collapse=&#34;Hide&#34;&gt;&lt;/span&gt;
+    &lt;/label&gt;
+    &lt;pre class=&#34;language-nasm&#34; &gt;&lt;code&gt;
+:start
+	movl ax, 10
+:sub1
+	movl bx, 1
+	sub  bx
+	cmp  ax,  ax
+	movl bx,  :sub1
+	jnz
+	rst
+&lt;/code&gt;&lt;/pre&gt;
+  &lt;/div&gt;
+
+
+
+
+
+  &lt;div class=&#34;collapsable-code&#34;&gt;
+    &lt;input id=&#34;3&#34; type=&#34;checkbox&#34;  /&gt;
+    &lt;label for=&#34;3&#34;&gt;
+      &lt;span class=&#34;collapsable-code__language&#34;&gt;nasm&lt;/span&gt;
+      &lt;span class=&#34;collapsable-code__title&#34;&gt;program.asm&lt;/span&gt;
+      &lt;span class=&#34;collapsable-code__toggle&#34; data-label-expand=&#34;Show&#34; data-label-collapse=&#34;Hide&#34;&gt;&lt;/span&gt;
+    &lt;/label&gt;
+    &lt;pre class=&#34;language-nasm&#34; &gt;&lt;code&gt;
+:start
+	movl cx, 10
+	clr
+	movl bx,  1
+	movl dx,  0
+	mmiv 0x0,  dx
+	movl bx,  :sub4
+	call bx,  0
+	mmov ax, 0x0
+	movl bx,  :sub5
+	call bx,  0
+:sub1
+	movl bx,  1
+	movl dx,  0
+	push dx,  0
+	movl bx,  :sub5
+	call bx,  0
+	movl bx,  1
+	sub  bx,  0
+	cmp  ax, ax
+	movl bx, :sub1
+	jnz
+	movl bx,  :sub4
+	call bx,  0
+:sub2
+	movl bx,  0
+	mmiv 0x1, bx
+	mmiv 0x2, bx
+:sub3
+	pop  ax,  0
+	movl bx,  1
+	movl dx,  0
+	movl bx,  :sub5
+	call bx,  0
+	mmov bx, 0x1
+	msk
+	mmiv 0x1, bx
+	mmov bx, 0x2
+	mskb
+	mmiv 0x2, bx
+	movl ax,  0xff
+	cmp  bx, ax
+	movl bx, :sub3
+	jl
+	movl bx,  0
+	mmov dx, 0x1
+	movl cx,  1
+	movl cx,  0
+	movl bx,  :sub2
+	jmp  bx,  0
+:sub4
+	movl ax,  0x05
+	movl bx,  :sub5
+	call bx,  0
+	movl bx,  1
+	sub  bx,  0
+	cmp  ax,  ax
+	movl bx,  :sub4&amp;#43;1
+	jnz
+	ret
+:sub5
+	movl cx,  4
+	movl cx,  0
+	ret
+&lt;/code&gt;&lt;/pre&gt;
+  &lt;/div&gt;
+
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id=&#34;processor-analysis&#34;&gt;Processor Analysis&lt;/h2&gt;
+&lt;p&gt;Once we open the &lt;code&gt;cpu.circ&lt;/code&gt; in logisim as stated, we can see that we have a whole processor that shows up :
+&lt;img src=&#34;https://alagroy-42.github.io/mechanical_cpu.png&#34; alt=&#34;processor&#34;&gt;&lt;/p&gt;
+&lt;p&gt;This processor is an electronic circuit powered by a clock. The first interesting part of the circuit are :&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;https://alagroy-42.github.io/mechanical_clock.png&#34; alt=&#34;Clock&#34;&gt;
+Fig 1. Clock Cycle
+&lt;img src=&#34;https://alagroy-42.github.io/mechanical_RAM.png&#34; alt=&#34;RAM&#34;&gt;
+Fig 2. RAM and instruction loading&lt;/p&gt;
+&lt;p&gt;On &lt;code&gt;Fig 1&lt;/code&gt;, we can see that the clock system is gonna cycle on 5 wires. The two first ones are the one coming from the top on &lt;code&gt;Fig 2&lt;/code&gt;. The first wire is gonna power the &lt;code&gt;WR&lt;/code&gt; register and the last four are respectively named Decode, Execute, Store and Clear. We can see on &lt;code&gt;Fig 2&lt;/code&gt; that a typical cycle will load the content of the current element (3 bytes) of the RAM in the &lt;code&gt;WR&lt;/code&gt; register and then split its three bytes in 3 different registers : &lt;code&gt;IR&lt;/code&gt;, &lt;code&gt;RA&lt;/code&gt; and &lt;code&gt;RB&lt;/code&gt;. Those bytes are then used by the CU module which probably stands for Control Unit :&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;https://alagroy-42.github.io/mechanical_cu.png&#34; alt=&#34;CU&#34;&gt;&lt;/p&gt;
+&lt;p&gt;In the Control Unit, we can see that there are a lot of blocks on the left side carrying the instructions name, we can guess that it is in those blocks that the instructions are executed. Those blocks are (almost) all directly plugged to &lt;code&gt;IR&lt;/code&gt; and when going inside the blocks we can see that they are also plugged to either &lt;code&gt;RA&lt;/code&gt;, &lt;code&gt;RA&lt;/code&gt; and &lt;code&gt;RB&lt;/code&gt;, or none. We can assume that &lt;code&gt;IR&lt;/code&gt; is gonna be the Instruction Register, &lt;code&gt;RA&lt;/code&gt; and &lt;code&gt;RB&lt;/code&gt; are gonna contain respectively the first and second operand of the instructions. Except for some special cases (&lt;code&gt;mov&lt;/code&gt;, &lt;code&gt;movl&lt;/code&gt;, &lt;code&gt;msk&lt;/code&gt; and &lt;code&gt;mskb&lt;/code&gt;), every instruction contains a AND logic gate plugged on each of the five last bits of &lt;code&gt;IR&lt;/code&gt; where some of the bits are being NOT.&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;https://alagroy-42.github.io/mechanical_gate.png&#34; alt=&#34;gate&#34;&gt;
+Fig 3. CMP instruction logic gate&lt;/p&gt;
+&lt;p&gt;Here we can see that &lt;code&gt;cmp&lt;/code&gt; is switched on by the &lt;code&gt;10011&lt;/code&gt; sequence (0x13), we can see that all these gates are unique so we can use them to retrieve the opcodes of all the instructions which gives us the following translation table :&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;Opcode&lt;/th&gt;
+&lt;th&gt;Instruction&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;0x0&lt;/td&gt;
+&lt;td&gt;add&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;0x1&lt;/td&gt;
+&lt;td&gt;sub&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;0x2&lt;/td&gt;
+&lt;td&gt;mul&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;0x3&lt;/td&gt;
+&lt;td&gt;clr&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;0x4&lt;/td&gt;
+&lt;td&gt;rst&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;0x5&lt;/td&gt;
+&lt;td&gt;jmp&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;0x6&lt;/td&gt;
+&lt;td&gt;ljmp&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;0x7&lt;/td&gt;
+&lt;td&gt;jlp&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;0x8&lt;/td&gt;
+&lt;td&gt;jg&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;0x9&lt;/td&gt;
+&lt;td&gt;jge&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;0xa&lt;/td&gt;
+&lt;td&gt;jl&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;0xb&lt;/td&gt;
+&lt;td&gt;jle&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;0xc&lt;/td&gt;
+&lt;td&gt;je&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;0xd&lt;/td&gt;
+&lt;td&gt;jz&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;0xe&lt;/td&gt;
+&lt;td&gt;jnz&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;0xf&lt;/td&gt;
+&lt;td&gt;div&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;0x10&lt;/td&gt;
+&lt;td&gt;movl*&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;0x11&lt;/td&gt;
+&lt;td&gt;call&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;0x12&lt;/td&gt;
+&lt;td&gt;ret&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;0x13&lt;/td&gt;
+&lt;td&gt;cmp&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;0x14&lt;/td&gt;
+&lt;td&gt;push&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;0x15&lt;/td&gt;
+&lt;td&gt;pop&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;0x17&lt;/td&gt;
+&lt;td&gt;mmiv&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;0x18&lt;/td&gt;
+&lt;td&gt;mmov&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;*The movl instruction isn’t directly plugged to &lt;code&gt;IR&lt;/code&gt;, it is the multiplexers on the right that are plugged to &lt;code&gt;IR&lt;/code&gt; and will execute (or not) movl depending on its value. But we can still guess its value by looking at the opcodes of &lt;code&gt;example.data&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;Now that we did that, we can try to guess how the operands are encoded. We will first look at the first two instructions of &lt;code&gt;example.asm&lt;/code&gt; :&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;&#34;&gt;&lt;code class=&#34;language-nasm&#34; data-lang=&#34;nasm&#34;&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;movl&lt;/span&gt; ax, &lt;span style=&#34;color:#ae81ff&#34;&gt;10&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;movl&lt;/span&gt; bx, &lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Those are encoded as : &lt;code&gt;10000a 100101&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;We know that 0x10 represents &lt;code&gt;movl&lt;/code&gt;, we can assume that literals are transmitted as so in the machine code (0xa = 10). Seeing that &lt;code&gt;ax&lt;/code&gt; is encoded as 0x00 and &lt;code&gt;bx&lt;/code&gt; as 0x01, we can establish this register encoding table:&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;Register&lt;/th&gt;
+&lt;th&gt;Encoding&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;ax&lt;/td&gt;
+&lt;td&gt;0x00&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;bx&lt;/td&gt;
+&lt;td&gt;0x01&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;cx&lt;/td&gt;
+&lt;td&gt;0x02&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;dx&lt;/td&gt;
+&lt;td&gt;0x03&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;Last thing we need is knowing how labels are encoded. We will now look at the instruction that uses a label :&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;&#34;&gt;&lt;code class=&#34;language-nasm&#34; data-lang=&#34;nasm&#34;&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;movl&lt;/span&gt; bx, :sub1
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;This instruction has been encoded as &lt;code&gt;100101&lt;/code&gt;. Now, we know that &lt;code&gt;sub1&lt;/code&gt;’s value is &lt;code&gt;01&lt;/code&gt;. Since &lt;code&gt;sub1&lt;/code&gt; starts at the second instruction, which has index 1 in the RAM, we can guess that labels are encoded as their index in the RAM.&lt;/p&gt;
+&lt;p&gt;We now have almost everything we need to write our compiler. We can see two unknown instructions in the code of the program that we don’t have opcodes for, &lt;code&gt;msk&lt;/code&gt; and &lt;code&gt;mskb&lt;/code&gt;. We can see by looking at their module that they are setting the output register to :&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;&#34;&gt;&lt;code class=&#34;language-nasm&#34; data-lang=&#34;nasm&#34;&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;msk&lt;/span&gt; : (ax &lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&lt;/span&gt; dx) &lt;span style=&#34;color:#f92672&#34;&gt;|&lt;/span&gt; bx
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;mskb&lt;/span&gt; : dx &lt;span style=&#34;color:#f92672&#34;&gt;|&lt;/span&gt; bx
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;As &lt;code&gt;movl&lt;/code&gt;, those instructions are always “executed” since they are not directly plugged to &lt;code&gt;IR&lt;/code&gt; but the multiplexer that is sending the result into output is so by manually setting registers and &lt;code&gt;IR&lt;/code&gt;, we can identify the opcodes by looking at the value of the CU’s output register (we didn’t manage to find a way to examine the internal circuits of the multiplexers and reading the XML seemed painful). By trying the few opcodes left, we got :&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;Opcode&lt;/th&gt;
+&lt;th&gt;Instruction&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;0x1a&lt;/td&gt;
+&lt;td&gt;msk&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;0x1b&lt;/td&gt;
+&lt;td&gt;mskb&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;h2 id=&#34;exploitation&#34;&gt;Exploitation&lt;/h2&gt;
+&lt;p&gt;Now that understand how the processor is working we can try to make a compiler to compile &lt;code&gt;program.asm&lt;/code&gt; into &lt;code&gt;program.data&lt;/code&gt;.
+To do so we have to clarify a few things first :&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Another odd thing in the code is the &lt;code&gt;sub5&lt;/code&gt; value that is not preceded by colons unlike the others, we assumed that it didn’t matter and it worked (we added the colons in the file to make the compiler simpler).&lt;/li&gt;
+&lt;li&gt;Last thing we didn’t mention is that every instruction that needs less than two operands is padded with zeros so it stays 3-bytes long (we’d like to thank the challenge maker for putting zeros in the code when the second operand was useless, it makes the compiler way easier to make).&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Here comes our compiler :&lt;/p&gt;
+&lt;p&gt;
+
+
+  &lt;div class=&#34;collapsable-code&#34;&gt;
+    &lt;input id=&#34;4&#34; type=&#34;checkbox&#34;  /&gt;
+    &lt;label for=&#34;4&#34;&gt;
+      &lt;span class=&#34;collapsable-code__language&#34;&gt;python&lt;/span&gt;
+      &lt;span class=&#34;collapsable-code__title&#34;&gt;compiler.py&lt;/span&gt;
+      &lt;span class=&#34;collapsable-code__toggle&#34; data-label-expand=&#34;Show&#34; data-label-collapse=&#34;Hide&#34;&gt;&lt;/span&gt;
+    &lt;/label&gt;
+    &lt;pre class=&#34;language-python&#34; &gt;&lt;code&gt;
+def get_instruction_type(instruction):
+    if instruction[0] == &amp;#39;:&amp;#39;:
+        return &amp;#39;label&amp;#39;
+    return &amp;#39;instruction&amp;#39;
+
+def get_opcode(instr):
+    translate_table = [
+        &amp;#34;add&amp;#34;,
+        &amp;#34;sub&amp;#34;,
+        &amp;#34;mul&amp;#34;,
+        &amp;#34;clr&amp;#34;,
+        &amp;#34;rst&amp;#34;,
+        &amp;#34;jmp&amp;#34;,
+        &amp;#34;ljmp&amp;#34;,
+        &amp;#34;jlp&amp;#34;,
+        &amp;#34;jg&amp;#34;,
+        &amp;#34;jge&amp;#34;,
+        &amp;#34;jl&amp;#34;,
+        &amp;#34;jle&amp;#34;,
+        &amp;#34;je&amp;#34;,
+        &amp;#34;jz&amp;#34;,
+        &amp;#34;jnz&amp;#34;,
+        &amp;#34;mov&amp;#34;,
+        &amp;#34;movl&amp;#34;,
+        &amp;#34;call&amp;#34;,
+        &amp;#34;ret&amp;#34;,
+        &amp;#34;cmp&amp;#34;,
+        &amp;#34;push&amp;#34;,
+        &amp;#34;pop&amp;#34;,
+        &amp;#34;div&amp;#34;,
+        &amp;#34;mmiv&amp;#34;,
+        &amp;#34;mmov&amp;#34;,
+        &amp;#34;&amp;#34;,
+        &amp;#34;msk&amp;#34;,
+        &amp;#34;mskb&amp;#34;
+    ]
+    return format(translate_table.index(instr), &amp;#39;02x&amp;#39;)
+
+
+def get_label_encoded(word, labels):
+    # Very ugly but there is only one so it&amp;#39;s fine
+    if &amp;#39;&amp;#43;1&amp;#39; in word:
+        return &amp;#39;2f&amp;#39;
+    else:
+        return labels[word]
+
+def get_operand_code(word, labels):
+    regs = [&amp;#39;ax&amp;#39;, &amp;#39;bx&amp;#39;, &amp;#39;cx&amp;#39;, &amp;#39;dx&amp;#39;]
+    if &amp;#39;:&amp;#39; in word:
+        return get_label_encoded(word, labels)
+    if &amp;#39;x&amp;#39; in word:
+        if word in regs:
+            return format(regs.index(word), &amp;#39;02x&amp;#39;)
+        else:
+            return format(int(word, 16), &amp;#39;02x&amp;#39;)
+    else:
+        return format(int(word), &amp;#39;02x&amp;#39;)
+
+
+def get_instruction_sequence(instruction, labels):
+    words = instruction.split()
+    opcode = get_opcode(words[0])
+    op1 = &amp;#39;00&amp;#39;
+    op2 = &amp;#39;00&amp;#39;
+    if len(words) == 3:
+        op1 = get_operand_code(words[1].strip(&amp;#39;,&amp;#39;), labels)
+        op2 = get_operand_code(words[2], labels)
+    return opcode &amp;#43; op1 &amp;#43; op2
+
+if __name__ == &amp;#39;__main__&amp;#39;:
+    # don&amp;#39;t forget to add the &amp;#39;:&amp;#39; in front of sub5 line 53 or compiler will crash
+    program_file = &amp;#39;./program.asm&amp;#39;
+    output_file = &amp;#39;./program.data&amp;#39;
+    filestream = open(program_file)
+    program = filestream.read().splitlines()
+    filestream.close()
+    labels = {}
+    data = []
+    for index, instruction in enumerate(program):
+        type = get_instruction_type(instruction)
+        if type == &amp;#39;label&amp;#39;:
+            labels[instruction] = format(index - len(labels), &amp;#39;02x&amp;#39;)
+    # print(labels)
+    for instruction in program:
+        type = get_instruction_type(instruction)
+        if type == &amp;#39;instruction&amp;#39;:
+            data.append(get_instruction_sequence(instruction.strip(), labels))
+    filestream = open(output_file, &amp;#39;w&amp;#39;)
+    filestream.write(&amp;#39; &amp;#39;.join(data))
+    filestream.close()
+    print(&amp;#39;Program has been compiled in :&amp;#39;, output_file)
+&lt;/code&gt;&lt;/pre&gt;
+  &lt;/div&gt;
+
+
+a
+Once our compiler has been written, we just have to compile the program, import it in the RAM then launch the simulation.
+&lt;img src=&#34;https://alagroy-42.github.io/mechanical_compiled.png&#34; alt=&#34;import&#34;&gt;
+After a little while (a long while if you don’t increase the auto-tick frequency), the flag will be displayed on the TTY to the right.
+&lt;img src=&#34;https://alagroy-42.github.io/mechanical_flag.png&#34; alt=&#34;flag&#34;&gt;&lt;/p&gt;
+</content>
+    </item>
+    
+  </channel>
+</rss>

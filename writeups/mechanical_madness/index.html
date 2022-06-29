@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  
+    <title>Mechanical Madness - [HTB UNICTF 2021 - Qualifiers] :: Hacklagr0y</title>
+  
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="This challenge was about reversing the way a given processor works to manually compile some bytecode." />
+<meta name="keywords" content="" />
+<meta name="robots" content="noodp" />
+<link rel="canonical" href="https://alagroy-42.github.io/writeups/mechanical_madness/" />
+
+
+
+
+<link rel="stylesheet" href="https://alagroy-42.github.io/assets/style.css">
+
+  <link rel="stylesheet" href="https://alagroy-42.github.io/assets/red.css">
+
+
+
+
+
+
+<link rel="apple-touch-icon" href="https://alagroy-42.github.io/img/apple-touch-icon-192x192.png">
+
+  <link rel="shortcut icon" href="https://alagroy-42.github.io/img/favicon/red.png">
+
+
+
+<meta name="twitter:card" content="summary" />
+
+  
+    <meta name="twitter:site" content="" />
+  
+    <meta name="twitter:creator" content="alagroy-" />
+
+
+
+<meta property="og:locale" content="en" />
+<meta property="og:type" content="article" />
+<meta property="og:title" content="Mechanical Madness - [HTB UNICTF 2021 - Qualifiers]">
+<meta property="og:description" content="This challenge was about reversing the way a given processor works to manually compile some bytecode." />
+<meta property="og:url" content="https://alagroy-42.github.io/writeups/mechanical_madness/" />
+<meta property="og:site_name" content="Hacklagr0y" />
+
+  
+    <meta property="og:image" content="https://alagroy-42.github.io/img/favicon/red.png">
+  
+
+<meta property="og:image:width" content="2048">
+<meta property="og:image:height" content="1024">
+
+
+  <meta property="article:published_time" content="2022-06-14 15:42:52 &#43;0200 CEST" />
+
+
+
+
+
+
+
+
+
+
+
+
+</head>
+<body class="red">
+
+
+<div class="container center headings--one-size">
+
+  <header class="header">
+  <div class="header__inner">
+    <div class="header__logo">
+      <a href="https://alagroy-42.github.io/">
+  <div class="logo">
+    Home
+  </div>
+</a>
+
+    </div>
+    
+      <div class="menu-trigger">menu</div>
+    
+  </div>
+  
+    <nav class="menu">
+  <ul class="menu__inner menu__inner--desktop">
+    
+      
+        
+          <li><a href="">About</a></li>
+        
+      
+        
+          <li><a href="/ctfs/">CTFs</a></li>
+        
+      
+        
+          <li><a href="/malware">Malware</a></li>
+        
+      
+        
+          <li><a href="/writeups">Writeups</a></li>
+        
+      
+      
+    
+
+    
+  </ul>
+
+  <ul class="menu__inner menu__inner--mobile">
+    
+      
+        <li><a href="">About</a></li>
+      
+    
+      
+        <li><a href="/ctfs/">CTFs</a></li>
+      
+    
+      
+        <li><a href="/malware">Malware</a></li>
+      
+    
+      
+        <li><a href="/writeups">Writeups</a></li>
+      
+    
+    
+  </ul>
+</nav>
+
+  
+</header>
+
+
+  <div class="content">
+    
+<div class="post">
+  <h1 class="post-title">
+    <a href="https://alagroy-42.github.io/writeups/mechanical_madness/">Mechanical Madness - [HTB UNICTF 2021 - Qualifiers]</a></h1>
+  <div class="post-meta">
+    
+      <span class="post-date">
+        2022-06-14
+        
+      </span>
+    
+    
+      <span class="post-author">:: alagroy-</span>
+    
+    
+  </div>
+
+  
+  <span class="post-tags">
+    
+    #<a href="https://alagroy-42.github.io/tags/hardware/">Hardware</a>&nbsp;
+    
+    #<a href="https://alagroy-42.github.io/tags/hard/">Hard</a>&nbsp;
+    
+    #<a href="https://alagroy-42.github.io/tags/assembly/">Assembly</a>&nbsp;
+    
+    #<a href="https://alagroy-42.github.io/tags/compilation/">Compilation</a>&nbsp;
+    
+  </span>
+  
+  
+
+
+  
+
+  <div class="post-content"><div>
+        <h2 id="the-challenge">The Challenge<a href="#the-challenge" class="hanchor" ariaLabel="Anchor">&#8983;</a> </h2>
+<p>For this challenge we had the following files :</p>
+<ul>
+<li><a href="/writeups/mechanical_madness/cpu.circ.xml">cpu.circ</a> (A very big XML file that describe the processor)
+
+
+
+  <div class="collapsable-code">
+    <input id="1" type="checkbox"  />
+    <label for="1">
+      <span class="collapsable-code__language">nasm</span>
+      <span class="collapsable-code__title">program.asm</span>
+      <span class="collapsable-code__toggle" data-label-expand="Show" data-label-collapse="Hide"></span>
+    </label>
+    <pre class="language-nasm" ><code>
+v2.0 raw
+10000a 100101 10100 130000 100101 e0000 40000 
+</code></pre>
+  </div>
+
+
+
+
+
+  <div class="collapsable-code">
+    <input id="2" type="checkbox"  />
+    <label for="2">
+      <span class="collapsable-code__language">nasm</span>
+      <span class="collapsable-code__title">program.asm</span>
+      <span class="collapsable-code__toggle" data-label-expand="Show" data-label-collapse="Hide"></span>
+    </label>
+    <pre class="language-nasm" ><code>
+:start
+	movl ax, 10
+:sub1
+	movl bx, 1
+	sub  bx
+	cmp  ax,  ax
+	movl bx,  :sub1
+	jnz
+	rst
+</code></pre>
+  </div>
+
+
+
+
+
+  <div class="collapsable-code">
+    <input id="3" type="checkbox"  />
+    <label for="3">
+      <span class="collapsable-code__language">nasm</span>
+      <span class="collapsable-code__title">program.asm</span>
+      <span class="collapsable-code__toggle" data-label-expand="Show" data-label-collapse="Hide"></span>
+    </label>
+    <pre class="language-nasm" ><code>
+:start
+	movl cx, 10
+	clr
+	movl bx,  1
+	movl dx,  0
+	mmiv 0x0,  dx
+	movl bx,  :sub4
+	call bx,  0
+	mmov ax, 0x0
+	movl bx,  :sub5
+	call bx,  0
+:sub1
+	movl bx,  1
+	movl dx,  0
+	push dx,  0
+	movl bx,  :sub5
+	call bx,  0
+	movl bx,  1
+	sub  bx,  0
+	cmp  ax, ax
+	movl bx, :sub1
+	jnz
+	movl bx,  :sub4
+	call bx,  0
+:sub2
+	movl bx,  0
+	mmiv 0x1, bx
+	mmiv 0x2, bx
+:sub3
+	pop  ax,  0
+	movl bx,  1
+	movl dx,  0
+	movl bx,  :sub5
+	call bx,  0
+	mmov bx, 0x1
+	msk
+	mmiv 0x1, bx
+	mmov bx, 0x2
+	mskb
+	mmiv 0x2, bx
+	movl ax,  0xff
+	cmp  bx, ax
+	movl bx, :sub3
+	jl
+	movl bx,  0
+	mmov dx, 0x1
+	movl cx,  1
+	movl cx,  0
+	movl bx,  :sub2
+	jmp  bx,  0
+:sub4
+	movl ax,  0x05
+	movl bx,  :sub5
+	call bx,  0
+	movl bx,  1
+	sub  bx,  0
+	cmp  ax,  ax
+	movl bx,  :sub4&#43;1
+	jnz
+	ret
+:sub5
+	movl cx,  4
+	movl cx,  0
+	ret
+</code></pre>
+  </div>
+
+</li>
+</ul>
+<h2 id="processor-analysis">Processor Analysis<a href="#processor-analysis" class="hanchor" ariaLabel="Anchor">&#8983;</a> </h2>
+<p>Once we open the <code>cpu.circ</code> in logisim as stated, we can see that we have a whole processor that shows up :
+<img src="/mechanical_cpu.png" alt="processor"></p>
+<p>This processor is an electronic circuit powered by a clock. The first interesting part of the circuit are :</p>
+<p><img src="/mechanical_clock.png" alt="Clock">
+Fig 1. Clock Cycle
+<img src="/mechanical_RAM.png" alt="RAM">
+Fig 2. RAM and instruction loading</p>
+<p>On <code>Fig 1</code>, we can see that the clock system is gonna cycle on 5 wires. The two first ones are the one coming from the top on <code>Fig 2</code>. The first wire is gonna power the <code>WR</code> register and the last four are respectively named Decode, Execute, Store and Clear. We can see on <code>Fig 2</code> that a typical cycle will load the content of the current element (3 bytes) of the RAM in the <code>WR</code> register and then split its three bytes in 3 different registers : <code>IR</code>, <code>RA</code> and <code>RB</code>. Those bytes are then used by the CU module which probably stands for Control Unit :</p>
+<p><img src="/mechanical_cu.png" alt="CU"></p>
+<p>In the Control Unit, we can see that there are a lot of blocks on the left side carrying the instructions name, we can guess that it is in those blocks that the instructions are executed. Those blocks are (almost) all directly plugged to <code>IR</code> and when going inside the blocks we can see that they are also plugged to either <code>RA</code>, <code>RA</code> and <code>RB</code>, or none. We can assume that <code>IR</code> is gonna be the Instruction Register, <code>RA</code> and <code>RB</code> are gonna contain respectively the first and second operand of the instructions. Except for some special cases (<code>mov</code>, <code>movl</code>, <code>msk</code> and <code>mskb</code>), every instruction contains a AND logic gate plugged on each of the five last bits of <code>IR</code> where some of the bits are being NOT.</p>
+<p><img src="/mechanical_gate.png" alt="gate">
+Fig 3. CMP instruction logic gate</p>
+<p>Here we can see that <code>cmp</code> is switched on by the <code>10011</code> sequence (0x13), we can see that all these gates are unique so we can use them to retrieve the opcodes of all the instructions which gives us the following translation table :</p>
+<table>
+<thead>
+<tr>
+<th>Opcode</th>
+<th>Instruction</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0x0</td>
+<td>add</td>
+</tr>
+<tr>
+<td>0x1</td>
+<td>sub</td>
+</tr>
+<tr>
+<td>0x2</td>
+<td>mul</td>
+</tr>
+<tr>
+<td>0x3</td>
+<td>clr</td>
+</tr>
+<tr>
+<td>0x4</td>
+<td>rst</td>
+</tr>
+<tr>
+<td>0x5</td>
+<td>jmp</td>
+</tr>
+<tr>
+<td>0x6</td>
+<td>ljmp</td>
+</tr>
+<tr>
+<td>0x7</td>
+<td>jlp</td>
+</tr>
+<tr>
+<td>0x8</td>
+<td>jg</td>
+</tr>
+<tr>
+<td>0x9</td>
+<td>jge</td>
+</tr>
+<tr>
+<td>0xa</td>
+<td>jl</td>
+</tr>
+<tr>
+<td>0xb</td>
+<td>jle</td>
+</tr>
+<tr>
+<td>0xc</td>
+<td>je</td>
+</tr>
+<tr>
+<td>0xd</td>
+<td>jz</td>
+</tr>
+<tr>
+<td>0xe</td>
+<td>jnz</td>
+</tr>
+<tr>
+<td>0xf</td>
+<td>div</td>
+</tr>
+<tr>
+<td>0x10</td>
+<td>movl*</td>
+</tr>
+<tr>
+<td>0x11</td>
+<td>call</td>
+</tr>
+<tr>
+<td>0x12</td>
+<td>ret</td>
+</tr>
+<tr>
+<td>0x13</td>
+<td>cmp</td>
+</tr>
+<tr>
+<td>0x14</td>
+<td>push</td>
+</tr>
+<tr>
+<td>0x15</td>
+<td>pop</td>
+</tr>
+<tr>
+<td>0x17</td>
+<td>mmiv</td>
+</tr>
+<tr>
+<td>0x18</td>
+<td>mmov</td>
+</tr>
+</tbody>
+</table>
+<p>*The movl instruction isn’t directly plugged to <code>IR</code>, it is the multiplexers on the right that are plugged to <code>IR</code> and will execute (or not) movl depending on its value. But we can still guess its value by looking at the opcodes of <code>example.data</code>.</p>
+<p>Now that we did that, we can try to guess how the operands are encoded. We will first look at the first two instructions of <code>example.asm</code> :</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-nasm" data-lang="nasm"><span style="display:flex;"><span><span style="color:#a6e22e">movl</span> ax, <span style="color:#ae81ff">10</span>
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">movl</span> bx, <span style="color:#ae81ff">1</span>
+</span></span></code></pre></div><p>Those are encoded as : <code>10000a 100101</code></p>
+<p>We know that 0x10 represents <code>movl</code>, we can assume that literals are transmitted as so in the machine code (0xa = 10). Seeing that <code>ax</code> is encoded as 0x00 and <code>bx</code> as 0x01, we can establish this register encoding table:</p>
+<table>
+<thead>
+<tr>
+<th>Register</th>
+<th>Encoding</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ax</td>
+<td>0x00</td>
+</tr>
+<tr>
+<td>bx</td>
+<td>0x01</td>
+</tr>
+<tr>
+<td>cx</td>
+<td>0x02</td>
+</tr>
+<tr>
+<td>dx</td>
+<td>0x03</td>
+</tr>
+</tbody>
+</table>
+<p>Last thing we need is knowing how labels are encoded. We will now look at the instruction that uses a label :</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-nasm" data-lang="nasm"><span style="display:flex;"><span><span style="color:#a6e22e">movl</span> bx, :sub1
+</span></span></code></pre></div><p>This instruction has been encoded as <code>100101</code>. Now, we know that <code>sub1</code>’s value is <code>01</code>. Since <code>sub1</code> starts at the second instruction, which has index 1 in the RAM, we can guess that labels are encoded as their index in the RAM.</p>
+<p>We now have almost everything we need to write our compiler. We can see two unknown instructions in the code of the program that we don’t have opcodes for, <code>msk</code> and <code>mskb</code>. We can see by looking at their module that they are setting the output register to :</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-nasm" data-lang="nasm"><span style="display:flex;"><span><span style="color:#a6e22e">msk</span> : (ax <span style="color:#f92672">&amp;</span> dx) <span style="color:#f92672">|</span> bx
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">mskb</span> : dx <span style="color:#f92672">|</span> bx
+</span></span></code></pre></div><p>As <code>movl</code>, those instructions are always “executed” since they are not directly plugged to <code>IR</code> but the multiplexer that is sending the result into output is so by manually setting registers and <code>IR</code>, we can identify the opcodes by looking at the value of the CU’s output register (we didn’t manage to find a way to examine the internal circuits of the multiplexers and reading the XML seemed painful). By trying the few opcodes left, we got :</p>
+<table>
+<thead>
+<tr>
+<th>Opcode</th>
+<th>Instruction</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0x1a</td>
+<td>msk</td>
+</tr>
+<tr>
+<td>0x1b</td>
+<td>mskb</td>
+</tr>
+</tbody>
+</table>
+<h2 id="exploitation">Exploitation<a href="#exploitation" class="hanchor" ariaLabel="Anchor">&#8983;</a> </h2>
+<p>Now that understand how the processor is working we can try to make a compiler to compile <code>program.asm</code> into <code>program.data</code>.
+To do so we have to clarify a few things first :</p>
+<ul>
+<li>Another odd thing in the code is the <code>sub5</code> value that is not preceded by colons unlike the others, we assumed that it didn’t matter and it worked (we added the colons in the file to make the compiler simpler).</li>
+<li>Last thing we didn’t mention is that every instruction that needs less than two operands is padded with zeros so it stays 3-bytes long (we’d like to thank the challenge maker for putting zeros in the code when the second operand was useless, it makes the compiler way easier to make).</li>
+</ul>
+<p>Here comes our compiler :</p>
+<p>
+
+
+  <div class="collapsable-code">
+    <input id="4" type="checkbox"  />
+    <label for="4">
+      <span class="collapsable-code__language">python</span>
+      <span class="collapsable-code__title">compiler.py</span>
+      <span class="collapsable-code__toggle" data-label-expand="Show" data-label-collapse="Hide"></span>
+    </label>
+    <pre class="language-python" ><code>
+def get_instruction_type(instruction):
+    if instruction[0] == &#39;:&#39;:
+        return &#39;label&#39;
+    return &#39;instruction&#39;
+
+def get_opcode(instr):
+    translate_table = [
+        &#34;add&#34;,
+        &#34;sub&#34;,
+        &#34;mul&#34;,
+        &#34;clr&#34;,
+        &#34;rst&#34;,
+        &#34;jmp&#34;,
+        &#34;ljmp&#34;,
+        &#34;jlp&#34;,
+        &#34;jg&#34;,
+        &#34;jge&#34;,
+        &#34;jl&#34;,
+        &#34;jle&#34;,
+        &#34;je&#34;,
+        &#34;jz&#34;,
+        &#34;jnz&#34;,
+        &#34;mov&#34;,
+        &#34;movl&#34;,
+        &#34;call&#34;,
+        &#34;ret&#34;,
+        &#34;cmp&#34;,
+        &#34;push&#34;,
+        &#34;pop&#34;,
+        &#34;div&#34;,
+        &#34;mmiv&#34;,
+        &#34;mmov&#34;,
+        &#34;&#34;,
+        &#34;msk&#34;,
+        &#34;mskb&#34;
+    ]
+    return format(translate_table.index(instr), &#39;02x&#39;)
+
+
+def get_label_encoded(word, labels):
+    # Very ugly but there is only one so it&#39;s fine
+    if &#39;&#43;1&#39; in word:
+        return &#39;2f&#39;
+    else:
+        return labels[word]
+
+def get_operand_code(word, labels):
+    regs = [&#39;ax&#39;, &#39;bx&#39;, &#39;cx&#39;, &#39;dx&#39;]
+    if &#39;:&#39; in word:
+        return get_label_encoded(word, labels)
+    if &#39;x&#39; in word:
+        if word in regs:
+            return format(regs.index(word), &#39;02x&#39;)
+        else:
+            return format(int(word, 16), &#39;02x&#39;)
+    else:
+        return format(int(word), &#39;02x&#39;)
+
+
+def get_instruction_sequence(instruction, labels):
+    words = instruction.split()
+    opcode = get_opcode(words[0])
+    op1 = &#39;00&#39;
+    op2 = &#39;00&#39;
+    if len(words) == 3:
+        op1 = get_operand_code(words[1].strip(&#39;,&#39;), labels)
+        op2 = get_operand_code(words[2], labels)
+    return opcode &#43; op1 &#43; op2
+
+if __name__ == &#39;__main__&#39;:
+    # don&#39;t forget to add the &#39;:&#39; in front of sub5 line 53 or compiler will crash
+    program_file = &#39;./program.asm&#39;
+    output_file = &#39;./program.data&#39;
+    filestream = open(program_file)
+    program = filestream.read().splitlines()
+    filestream.close()
+    labels = {}
+    data = []
+    for index, instruction in enumerate(program):
+        type = get_instruction_type(instruction)
+        if type == &#39;label&#39;:
+            labels[instruction] = format(index - len(labels), &#39;02x&#39;)
+    # print(labels)
+    for instruction in program:
+        type = get_instruction_type(instruction)
+        if type == &#39;instruction&#39;:
+            data.append(get_instruction_sequence(instruction.strip(), labels))
+    filestream = open(output_file, &#39;w&#39;)
+    filestream.write(&#39; &#39;.join(data))
+    filestream.close()
+    print(&#39;Program has been compiled in :&#39;, output_file)
+</code></pre>
+  </div>
+
+
+a
+Once our compiler has been written, we just have to compile the program, import it in the RAM then launch the simulation.
+<img src="/mechanical_compiled.png" alt="import">
+After a little while (a long while if you don’t increase the auto-tick frequency), the flag will be displayed on the TTY to the right.
+<img src="/mechanical_flag.png" alt="flag"></p>
+
+      </div></div>
+
+  
+
+  
+  
+
+  
+</div>
+
+  </div>
+
+  
+    <footer class="footer">
+  <div class="footer__inner">
+    
+      <div class="copyright">
+        <span>© 2022 Powered by <a href="http://gohugo.io">Hugo</a></span>
+    
+        <span>:: Theme made by <a href="https://twitter.com/panr">panr</a></span>
+      </div>
+  </div>
+</footer>
+
+<script src="https://alagroy-42.github.io/assets/main.js"></script>
+<script src="https://alagroy-42.github.io/assets/prism.js"></script>
+
+
+
+
+
+
+
+  
+</div>
+
+</body>
+</html>
