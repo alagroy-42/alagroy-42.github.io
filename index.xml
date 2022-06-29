@@ -1257,16 +1257,14 @@ if __name__ == &amp;#34;__main__&amp;#34;:
     
     <item>
       <title>About</title>
-      <link>https://alagroy-42.github.io/about/inde/</link>
+      <link>https://alagroy-42.github.io/about/</link>
       <pubDate>Tue, 14 Jun 2022 14:23:54 +0200</pubDate>
       
-      <guid>https://alagroy-42.github.io/about/inde/</guid>
-      <description>## whoami
-
-I am a cybersecurity student that aims to be a malware analyst in the future.</description>
-      <content>## whoami
-
-I am a cybersecurity student that aims to be a malware analyst in the future.</content>
+      <guid>https://alagroy-42.github.io/about/</guid>
+      <description>whoami I am a cybersecurity student that aims to be a malware analyst in the future.</description>
+      <content>&lt;h2 id=&#34;whoami&#34;&gt;whoami&lt;/h2&gt;
+&lt;p&gt;I am a cybersecurity student that aims to be a malware analyst in the future.&lt;/p&gt;
+</content>
     </item>
     
   </channel>
