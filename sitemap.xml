@@ -2,6 +2,12 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
   xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
+    <loc>https://alagroy-42.github.io/malware_dev/</loc>
+    <lastmod>2022-07-08T17:25:14+02:00</lastmod>
+  </url><url>
+    <loc>https://alagroy-42.github.io/malware_dev/simple_backdoor/</loc>
+    <lastmod>2022-07-08T17:25:14+02:00</lastmod>
+  </url><url>
     <loc>https://alagroy-42.github.io/malware_dev/infector_advanced/</loc>
     <lastmod>2022-06-20T14:25:16+02:00</lastmod>
   </url><url>
@@ -12,9 +18,6 @@
     <lastmod>2022-06-20T14:25:16+02:00</lastmod>
   </url><url>
     <loc>https://alagroy-42.github.io/tags/malware/</loc>
-    <lastmod>2022-06-20T14:25:16+02:00</lastmod>
-  </url><url>
-    <loc>https://alagroy-42.github.io/malware_dev/</loc>
     <lastmod>2022-06-20T14:25:16+02:00</lastmod>
   </url><url>
     <loc>https://alagroy-42.github.io/tags/</loc>
