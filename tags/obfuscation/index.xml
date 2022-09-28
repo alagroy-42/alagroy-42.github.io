@@ -13,8 +13,177 @@
       <pubDate>Wed, 13 Jul 2022 12:15:19 +0200</pubDate>
       
       <guid>https://alagroy-42.github.io/malware_dev/obfuscation_techniques/</guid>
-      <description></description>
-      <content></content>
+      <description>Introduction To keep things simple, in cybersecurity operations, there are two teams : the blue team and the red team, the defenders and the attackers. Even though they seem completely different, each one&amp;rsquo;s goal is to make the other team&amp;rsquo;s job as hard as possible and eventually to defeat it. To do that, blue-teamers often use reverse-engineering to get a grasp on how malware works and how to mitigate its effect.</description>
+      <content>&lt;h2 id=&#34;introduction&#34;&gt;Introduction&lt;/h2&gt;
+&lt;p&gt;To keep things simple, in cybersecurity operations, there are two teams : the blue team and the red team, the defenders and the attackers. Even though they seem completely different, each one&amp;rsquo;s goal is to make the other team&amp;rsquo;s job as hard as possible and eventually to defeat it. To do that, blue-teamers often use reverse-engineering to get a grasp on how malware works and how to mitigate its effect. Here, we will see how we can try to make their job harder if they want to analyze our virus. There is usually two stages in the malware analysis : the static analysis and the dynamic one. The static consists in deassembling/decompiling the code to try to understand it though sometimes you cannot really understand a malware internal function just by reading it so you have to dynamically analyze it using debuggers to trace the execution and analyze ot step by step.&lt;/p&gt;
+&lt;h2 id=&#34;countering-static-analysis&#34;&gt;Countering static analysis&lt;/h2&gt;
+&lt;h3 id=&#34;preliminary-analysis&#34;&gt;Preliminary analysis&lt;/h3&gt;
+&lt;p&gt;The fist step of static analysis will obviously be to list symbol names, variables or anything relevant in the code. For usual malware, it is recommended to strip the binary and to alter the functions/variables names to avoid it being useful in any way. There are a lot of automated software for that. In our case, let&amp;rsquo;s assume that it is the code of an infected binary that has been recovered. There won&amp;rsquo;t be any symbol names related to the viral code so that won&amp;rsquo;t be a problem. There is still one thing that is critical for analysis : raw strings. By using the &lt;code&gt;strings&lt;/code&gt; command, you can list all the alphanumerical strings present in the binary. Even though our code usually won&amp;rsquo;t rely on strings too much, we will still use some of them that would be very useful to analysts like the infection folders or &lt;code&gt;/bin/sh&lt;/code&gt; for the backdoor. To avoid having those raw strings in the code a good thing would be to store an encrypted value that would be decrypted at runtime, preferably not only alphanumerical so it doesn&amp;rsquo;t appear in the string list (avoid base 64, ROT or this kind of algorithm, XOR-based ones are usually a better solution).&lt;/p&gt;
+&lt;h3 id=&#34;code-analysis&#34;&gt;Code analysis&lt;/h3&gt;
+&lt;p&gt;Once the preliminary checks are done, it is usually time to analyze the code. In our case, let&amp;rsquo;s assume that the analyst found where the malicious code is, it will disassemble it to try to understand it. To deceive them, we will use several obfuscation to fool automated tools or even their comprehension of the code. Let&amp;rsquo;s review some of these.&lt;/p&gt;
+&lt;p&gt;Here is a code sample that we are gonna alter and see the differences &lt;code&gt;objdump&lt;/code&gt; is gonna show us and how it can help us to deceive analysts.&lt;/p&gt;
+
+
+
+  &lt;div class=&#34;collapsable-code&#34;&gt;
+    &lt;input id=&#34;sample&#34; type=&#34;checkbox&#34;  /&gt;
+    &lt;label for=&#34;sample&#34;&gt;
+      &lt;span class=&#34;collapsable-code__language&#34;&gt;nasm&lt;/span&gt;
+      &lt;span class=&#34;collapsable-code__title&#34;&gt;sample.s&lt;/span&gt;
+      &lt;span class=&#34;collapsable-code__toggle&#34; data-label-expand=&#34;Show&#34; data-label-collapse=&#34;Hide&#34;&gt;&lt;/span&gt;
+    &lt;/label&gt;
+    &lt;pre class=&#34;language-nasm&#34; &gt;&lt;code&gt;
+BITS 64
+
+section .text
+
+_start:
+    push    rbp
+    mov     rbp, rsp
+    xor     rax, rax
+    add     rax, 0xff
+    push    rax
+    mov     rdx, rax
+    sub     rax, rdx
+    leave
+    ret
+&lt;/code&gt;&lt;/pre&gt;
+  &lt;/div&gt;
+
+
+&lt;p&gt;Once compiled it gives us the following output when we disassemble it with &lt;code&gt;objdump&lt;/code&gt;:
+&lt;img src=&#34;https://alagroy-42.github.io/obf_sample.png&#34; alt=&#34;obf_sample&#34;&gt;&lt;/p&gt;
+&lt;p&gt;Let&amp;rsquo;s see how we are gonna alter this output and try to hide what the code is doing without altering its function with a few techniques.&lt;/p&gt;
+&lt;h4 id=&#34;dead-code&#34;&gt;Dead code&lt;/h4&gt;
+&lt;p&gt;The first and very easy way to obfuscate code is to add dead code inside that will show up but never be executed. It is very easy to do but also to undo. The principle is to add an unconditional jump to skip all the useless code. Obviously since it is very easy to do, it is also very easy to undo as an analysts. Since the jump is unconditional, the execution flow is very easy to follow so dead code will be very easy to detect. One of the other downside of this technique is that putting useless code takes place so when the payload size matters, it is not a very good idea to use it.&lt;/p&gt;
+
+
+
+  &lt;div class=&#34;collapsable-code&#34;&gt;
+    &lt;input id=&#34;dead_code&#34; type=&#34;checkbox&#34;  /&gt;
+    &lt;label for=&#34;dead_code&#34;&gt;
+      &lt;span class=&#34;collapsable-code__language&#34;&gt;nasm&lt;/span&gt;
+      &lt;span class=&#34;collapsable-code__title&#34;&gt;dead_code.s&lt;/span&gt;
+      &lt;span class=&#34;collapsable-code__toggle&#34; data-label-expand=&#34;Show&#34; data-label-collapse=&#34;Hide&#34;&gt;&lt;/span&gt;
+    &lt;/label&gt;
+    &lt;pre class=&#34;language-nasm&#34; &gt;&lt;code&gt;
+BITS 64
+
+section .text
+
+_start:
+    push    rbp
+    mov     rbp, rsp
+    xor     rax, rax
+    jmp     end_of_dead_code ; All the code that follows before the label will never get executed
+    push    rax
+    pop     rbx
+    mov     rcx, rax
+    call    end_of_dead_code
+    ret
+    jmp     _start
+end_of_dead_code:
+    add     rax, 0xff
+    push    rax
+    mov     rdx, rax
+    sub     rax, rdx
+    leave
+    ret
+&lt;/code&gt;&lt;/pre&gt;
+  &lt;/div&gt;
+
+
+&lt;p&gt;Now &lt;code&gt;objdump&lt;/code&gt; is gonna show us all those useless instructions that are gonna add some noise to the analysis :&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;https://alagroy-42.github.io/obf_dead_code.png&#34; alt=&#34;obf_dead_code&#34;&gt;&lt;/p&gt;
+&lt;h4 id=&#34;fake-jumps&#34;&gt;Fake jumps&lt;/h4&gt;
+&lt;p&gt;Let&amp;rsquo;s get to real things now, the &amp;ldquo;fake jump&amp;rdquo; technique is one that I quite like and it is very simple to use. Its principle is very simple, it will jump on the next &amp;ldquo;real&amp;rdquo; instruction that we want to execute, and we put one or two dead bytes between the jump and the instruction. By carefully controlling these dead byte values to opcodes, we will make some tools like &lt;code&gt;objdump&lt;/code&gt; or the &lt;code&gt;gdb&lt;/code&gt; disassembler that those dead bytes are the beginning of an instruction which is gonna alter their interpretations of the next few instructions to totally different ones though the execution will remain the same.&lt;/p&gt;
+
+
+
+  &lt;div class=&#34;collapsable-code&#34;&gt;
+    &lt;input id=&#34;sample&#34; type=&#34;checkbox&#34;  /&gt;
+    &lt;label for=&#34;sample&#34;&gt;
+      &lt;span class=&#34;collapsable-code__language&#34;&gt;nasm&lt;/span&gt;
+      &lt;span class=&#34;collapsable-code__title&#34;&gt;sample.s&lt;/span&gt;
+      &lt;span class=&#34;collapsable-code__toggle&#34; data-label-expand=&#34;Show&#34; data-label-collapse=&#34;Hide&#34;&gt;&lt;/span&gt;
+    &lt;/label&gt;
+    &lt;pre class=&#34;language-nasm&#34; &gt;&lt;code&gt;
+BITS 64
+
+section .text
+
+_start:
+    push    rbp
+    mov     rbp, rsp
+    jmp $&amp;#43;4
+    db 0x48, 0x8d ; Here we use REX.W LEA
+    xor     rax, rax
+    add     rax, 0xff
+    push    rax
+    mov     rdx, rax
+    sub     rax, rdx
+    leave
+    ret
+&lt;/code&gt;&lt;/pre&gt;
+  &lt;/div&gt;
+
+
+&lt;p&gt;And here is what we get once we disassemble this sample with &lt;code&gt;objdump&lt;/code&gt; :&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;https://alagroy-42.github.io/obf_fake_jump.png&#34; alt=&#34;obf_fake_jump&#34;&gt;&lt;/p&gt;
+&lt;p&gt;We can see that it changed the way our code was disassembled although it won&amp;rsquo;t change anything about its execution. Placing a lot of those in your code will completely affect the output of this kind of tool like &lt;code&gt;objudmp&lt;/code&gt; or &lt;code&gt;gdb&lt;/code&gt;. However, this technique won&amp;rsquo;t work with modern disassembler like IDA which will disassemble the destination of the jump, which is our instructions.&lt;/p&gt;
+&lt;h4 id=&#34;fake-ret&#34;&gt;Fake ret&lt;/h4&gt;
+&lt;p&gt;Another interesting technique to use to counter static code analysis is the fake return technique. First, let&amp;rsquo;s talk about what the &lt;code&gt;call/ret&lt;/code&gt; instructions really do. &lt;code&gt;call&lt;/code&gt; is like a jump at the difference that it will push the &lt;code&gt;rip&lt;/code&gt; value on the stack before jumping so that when &lt;code&gt;ret&lt;/code&gt; is called it will pop that value and jump on it to get back to where we were. It means that if we manage to push the address of the next &amp;ldquo;real&amp;rdquo; instruction on the stack and then use &lt;code&gt;ret&lt;/code&gt;, it won&amp;rsquo;t do anything but most of the disassemblers/decompilers still nowadays are gonna stop decompiling the procedure as soon as it reaches the &lt;code&gt;ret&lt;/code&gt; instruction. I will use a macro here for clarity.&lt;/p&gt;
+
+
+
+  &lt;div class=&#34;collapsable-code&#34;&gt;
+    &lt;input id=&#34;fake_ret&#34; type=&#34;checkbox&#34;  /&gt;
+    &lt;label for=&#34;fake_ret&#34;&gt;
+      &lt;span class=&#34;collapsable-code__language&#34;&gt;nasm&lt;/span&gt;
+      &lt;span class=&#34;collapsable-code__title&#34;&gt;fake_ret.s&lt;/span&gt;
+      &lt;span class=&#34;collapsable-code__toggle&#34; data-label-expand=&#34;Show&#34; data-label-collapse=&#34;Hide&#34;&gt;&lt;/span&gt;
+    &lt;/label&gt;
+    &lt;pre class=&#34;language-nasm&#34; &gt;&lt;code&gt;
+BITS 64
+
+%macro PUSH_RET 0
+    push    rax
+    push    rax
+    lea     rax, [rel %%ret_to]
+    mov     QWORD [rsp &amp;#43; 0x8], rax
+    pop     rax
+    ret
+    %%ret_to:
+%endmacro
+
+section .text
+    global _start
+
+_start:
+    push    rbp
+    mov     rbp, rsp
+    PUSH_RET
+    xor     rax, rax
+    add     rax, 0xff
+    push    rax
+    mov     rdx, rax
+    sub     rax, rdx
+    leave
+    ret
+&lt;/code&gt;&lt;/pre&gt;
+  &lt;/div&gt;
+
+
+&lt;p&gt;&lt;img src=&#34;https://alagroy-42.github.io/obf_fake_ret.png&#34; alt=&#34;obf_fake_ret&#34;&gt;&lt;/p&gt;
+&lt;p&gt;As you can see here, although the code that will be executed is basically the same, the disassembler shows it as being two different procedures, including one that will never be called (supposedly of course).&lt;/p&gt;
+&lt;h2 id=&#34;countering-dynamic-analysis&#34;&gt;Countering dynamic analysis&lt;/h2&gt;
+&lt;h3 id=&#34;anti-av-ultra-basic&#34;&gt;Anti-AV (ultra-basic)&lt;/h3&gt;
+&lt;p&gt;Let&amp;rsquo;s consider that the infected system might have an AV/EDR running and that we know that some of them will catch us. We can have a &amp;ldquo;blacklist&amp;rdquo; that contains program name that will stop the execution of our program if running. To do that, we can check, for every numeric folder in the &lt;code&gt;/proc&lt;/code&gt; directory (which are fds), their &lt;code&gt;status&lt;/code&gt; file inside which there is a field that contains the name of the executable. By doing that, we can check every program running and see if we are safe to proceed with malicious activity.&lt;/p&gt;
+&lt;h3 id=&#34;anti-debugger&#34;&gt;Anti-debugger&lt;/h3&gt;
+&lt;p&gt;To be fair, anti-debugging is quite hard in the sense that a debugger can alter our program at runtime and by doing so, it can change return or register values and defeat our anti-debugging. Though, it is still useful to try to avoid tampering for two reasons, an automated program tracing our execution would not be able to find out about the anti-tampering routine. The other reason is that even though a human manually tracing the execution would be able to patch the anti-tampering checks, it would still induce a more or less significant loss of time depending on the technique used. The technique that is the most common is to use the &lt;code&gt;ptrace&lt;/code&gt; syscall in various way to check that. The first way os to try to attach to the parent process. In case it fails, it means that it is already tracing us which would imply that the parent process is probably a debugger. Since a process can be traced by only one process, another way to do so is to fork and then trace the child while the child will trace the parent. By doing so, we can check if one of them is already being traced (our own tracing would fail) but if we manage to &amp;ldquo;double trace&amp;rdquo; ourself, no process would be able to attach after the check since we already did. Even though those &lt;code&gt;ptrace&lt;/code&gt; techniques are great and useful, in the case of file infector, they can alter the way our host program works (it breaks &lt;code&gt;bash&lt;/code&gt; for example), which is something we absolutely don&amp;rsquo;t want for stealth reasons. To avoid that, the technique I used for my viruses is to check the &lt;code&gt;/proc/self/status&lt;/code&gt; file. This file contains plenty of information about the current process (ourself) including a &lt;code&gt;TracerPid&lt;/code&gt; field. If it is not null, we are being debugged.&lt;/p&gt;
+&lt;h2 id=&#34;conclusion&#34;&gt;Conclusion&lt;/h2&gt;
+&lt;p&gt;This is a little introduction to code obfuscation and anti-tampering. Even though most of these techniques are not applicable in the world of today, it is still a good way to learn the notions and the interest of this kind of techniques. For more advanced obfuscation stuff, I advise you tyo read my next post on &lt;a href=&#34;https://alagroy-42.github.io/malware_dev/oligomorphism&#34;&gt;oligomorphism&lt;/a&gt;.&lt;/p&gt;
+</content>
     </item>
     
   </channel>

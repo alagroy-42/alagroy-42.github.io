@@ -273,7 +273,7 @@ if __name__ == &#34;__main__&#34;:
 
 
 <p>This Python script is gonna interpret python code with the <code>eval</code> function after doing some parsing with the AST module. The parsing is gonna make sure that every component of the evaluated expression is safe. Function calls are only considered safe if they are part of the <code>math</code> module. After reading the <code>math</code> documentation, we realized that there was no way of doing nasty things with any function so we decided to try to bypass the AST checks.</p>
-<h3 id="the-resolution">The Resolution<a href="#the-resolution" class="hanchor" ariaLabel="Anchor">&#8983;</a> </h3>
+<h2 id="the-resolution">The Resolution<a href="#the-resolution" class="hanchor" ariaLabel="Anchor">&#8983;</a> </h2>
 <p><img src="/tree_source_code.png" alt="vuln_func_code"></p>
 <p>In this function, the if statement line 37 doesn&rsquo;t take into account operator precedence in Python, since <code>not</code> has a higher precedence than <code>and</code>, <code>not</code> only applies to the key verification and not to the value verification. If it returns <code>True</code>, then the value of the dictionary is not gonna be checked. Thanks to that vulnerability, we can embed the open symbol in the dictionary.</p>
 <p><img src="/tree_embedded.png" alt="vuln_func_code"></p>

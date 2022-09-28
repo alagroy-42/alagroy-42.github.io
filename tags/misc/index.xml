@@ -103,7 +103,7 @@ if __name__ == &amp;#34;__main__&amp;#34;:
 
 
 &lt;p&gt;This Python script is gonna interpret python code with the &lt;code&gt;eval&lt;/code&gt; function after doing some parsing with the AST module. The parsing is gonna make sure that every component of the evaluated expression is safe. Function calls are only considered safe if they are part of the &lt;code&gt;math&lt;/code&gt; module. After reading the &lt;code&gt;math&lt;/code&gt; documentation, we realized that there was no way of doing nasty things with any function so we decided to try to bypass the AST checks.&lt;/p&gt;
-&lt;h3 id=&#34;the-resolution&#34;&gt;The Resolution&lt;/h3&gt;
+&lt;h2 id=&#34;the-resolution&#34;&gt;The Resolution&lt;/h2&gt;
 &lt;p&gt;&lt;img src=&#34;https://alagroy-42.github.io/tree_source_code.png&#34; alt=&#34;vuln_func_code&#34;&gt;&lt;/p&gt;
 &lt;p&gt;In this function, the if statement line 37 doesn&amp;rsquo;t take into account operator precedence in Python, since &lt;code&gt;not&lt;/code&gt; has a higher precedence than &lt;code&gt;and&lt;/code&gt;, &lt;code&gt;not&lt;/code&gt; only applies to the key verification and not to the value verification. If it returns &lt;code&gt;True&lt;/code&gt;, then the value of the dictionary is not gonna be checked. Thanks to that vulnerability, we can embed the open symbol in the dictionary.&lt;/p&gt;
 &lt;p&gt;&lt;img src=&#34;https://alagroy-42.github.io/tree_embedded.png&#34; alt=&#34;vuln_func_code&#34;&gt;&lt;/p&gt;

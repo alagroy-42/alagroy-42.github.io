@@ -6,11 +6,11 @@
     <description>Recent content in Tags on Hacklagr0y</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en-us</language>
-    <lastBuildDate>Wed, 13 Jul 2022 12:15:19 +0200</lastBuildDate><atom:link href="https://alagroy-42.github.io/tags/index.xml" rel="self" type="application/rss+xml" />
+    <lastBuildDate>Fri, 23 Sep 2022 16:02:14 +0200</lastBuildDate><atom:link href="https://alagroy-42.github.io/tags/index.xml" rel="self" type="application/rss+xml" />
     <item>
       <title>Assembly</title>
       <link>https://alagroy-42.github.io/tags/assembly/</link>
-      <pubDate>Wed, 13 Jul 2022 12:15:19 +0200</pubDate>
+      <pubDate>Fri, 23 Sep 2022 16:02:14 +0200</pubDate>
       
       <guid>https://alagroy-42.github.io/tags/assembly/</guid>
       <description></description>
@@ -20,7 +20,7 @@
     <item>
       <title>Linux</title>
       <link>https://alagroy-42.github.io/tags/linux/</link>
-      <pubDate>Wed, 13 Jul 2022 12:15:19 +0200</pubDate>
+      <pubDate>Fri, 23 Sep 2022 16:02:14 +0200</pubDate>
       
       <guid>https://alagroy-42.github.io/tags/linux/</guid>
       <description></description>
@@ -30,9 +30,19 @@
     <item>
       <title>Malware</title>
       <link>https://alagroy-42.github.io/tags/malware/</link>
-      <pubDate>Wed, 13 Jul 2022 12:15:19 +0200</pubDate>
+      <pubDate>Fri, 23 Sep 2022 16:02:14 +0200</pubDate>
       
       <guid>https://alagroy-42.github.io/tags/malware/</guid>
+      <description></description>
+      <content></content>
+    </item>
+    
+    <item>
+      <title>Oligomorphism</title>
+      <link>https://alagroy-42.github.io/tags/oligomorphism/</link>
+      <pubDate>Fri, 23 Sep 2022 16:02:14 +0200</pubDate>
+      
+      <guid>https://alagroy-42.github.io/tags/oligomorphism/</guid>
       <description></description>
       <content></content>
     </item>
