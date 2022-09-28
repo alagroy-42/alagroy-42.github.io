@@ -1711,11 +1711,11 @@ if __name__ == &amp;#34;__main__&amp;#34;:
       <pubDate>Tue, 14 Jun 2022 14:23:54 +0200</pubDate>
       
       <guid>https://alagroy-42.github.io/about/</guid>
-      <description>whoami My name is Adrien and I am a computer science student mainly interested in cybersecurity. I mainly enjoy everything related to malware whether it is malware development or analysis, I also play CTFs. I will use this site to post writeups and articles about my findings on my cyber world journey.
-Some of my projects Pestilence: An oligomorphic Linux virus implementing different obfuscation techniques. Woody-woodpacker: A simple ELF packer that can encrypt a given binary and insert a decryption routine.</description>
-      <content>&lt;h2 id=&#34;whoami&#34;&gt;whoami&lt;/h2&gt;
+      <description>$&amp;gt; whoami My name is Adrien and I am a computer science student mainly interested in cybersecurity. I mainly enjoy everything related to malware whether it is malware development or analysis, I also play CTFs. I will use this site to post writeups and articles about my findings on my cyber world journey.
+$&amp;gt; ls -l ~/Projects Pestilence: An oligomorphic Linux virus implementing different obfuscation techniques. Woody-woodpacker: A simple ELF packer that can encrypt a given binary and insert a decryption routine.</description>
+      <content>&lt;h2 id=&#34;-whoami&#34;&gt;$&amp;gt; whoami&lt;/h2&gt;
 &lt;p&gt;My name is Adrien and I am a computer science student mainly interested in cybersecurity. I mainly enjoy everything related to malware whether it is malware development or analysis, I also play CTFs. I will use this site to post writeups and articles about my findings on my cyber world journey.&lt;/p&gt;
-&lt;h2 id=&#34;some-of-my-projects&#34;&gt;Some of my projects&lt;/h2&gt;
+&lt;h2 id=&#34;-ls--l-projects&#34;&gt;$&amp;gt; ls -l ~/Projects&lt;/h2&gt;
 &lt;ul&gt;
 &lt;li&gt;&lt;a href=&#34;https://github.com/alagroy-42/Pestilence&#34;&gt;Pestilence&lt;/a&gt;: An oligomorphic Linux virus implementing different obfuscation techniques.&lt;/li&gt;
 &lt;li&gt;&lt;a href=&#34;https://github.com/alagroy-42/woody-woodpacker&#34;&gt;Woody-woodpacker&lt;/a&gt;: A simple ELF packer that can encrypt a given binary and insert a decryption routine.&lt;/li&gt;
