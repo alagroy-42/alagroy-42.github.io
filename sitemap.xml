@@ -2,6 +2,24 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
   xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
+    <loc>https://alagroy-42.github.io/tags/easy/</loc>
+    <lastmod>2022-12-06T13:24:27+01:00</lastmod>
+  </url><url>
+    <loc>https://alagroy-42.github.io/tags/pwn/</loc>
+    <lastmod>2022-12-06T13:24:27+01:00</lastmod>
+  </url><url>
+    <loc>https://alagroy-42.github.io/tags/ret2libc/</loc>
+    <lastmod>2022-12-06T13:24:27+01:00</lastmod>
+  </url><url>
+    <loc>https://alagroy-42.github.io/writeups/sacred_scrolls/</loc>
+    <lastmod>2022-12-06T13:24:27+01:00</lastmod>
+  </url><url>
+    <loc>https://alagroy-42.github.io/tags/</loc>
+    <lastmod>2022-12-06T13:24:27+01:00</lastmod>
+  </url><url>
+    <loc>https://alagroy-42.github.io/writeups/</loc>
+    <lastmod>2022-12-06T13:24:27+01:00</lastmod>
+  </url><url>
     <loc>https://alagroy-42.github.io/tags/assembly/</loc>
     <lastmod>2022-09-23T16:02:14+02:00</lastmod>
   </url><url>
@@ -18,9 +36,6 @@
     <lastmod>2022-09-23T16:02:14+02:00</lastmod>
   </url><url>
     <loc>https://alagroy-42.github.io/malware_dev/oligomorphism/</loc>
-    <lastmod>2022-09-23T16:02:14+02:00</lastmod>
-  </url><url>
-    <loc>https://alagroy-42.github.io/tags/</loc>
     <lastmod>2022-09-23T16:02:14+02:00</lastmod>
   </url><url>
     <loc>https://alagroy-42.github.io/tags/obfuscation/</loc>
@@ -57,9 +72,6 @@
     <lastmod>2022-06-14T18:39:26+02:00</lastmod>
   </url><url>
     <loc>https://alagroy-42.github.io/tags/vba/</loc>
-    <lastmod>2022-06-14T18:39:26+02:00</lastmod>
-  </url><url>
-    <loc>https://alagroy-42.github.io/writeups/</loc>
     <lastmod>2022-06-14T18:39:26+02:00</lastmod>
   </url><url>
     <loc>https://alagroy-42.github.io/tags/compilation/</loc>

