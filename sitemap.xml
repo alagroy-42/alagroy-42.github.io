@@ -2,22 +2,31 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
   xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
-    <loc>https://alagroy-42.github.io/tags/easy/</loc>
-    <lastmod>2022-12-06T13:24:27+01:00</lastmod>
+    <loc>https://alagroy-42.github.io/tags/format-string/</loc>
+    <lastmod>2022-12-06T16:43:40+01:00</lastmod>
+  </url><url>
+    <loc>https://alagroy-42.github.io/tags/medium/</loc>
+    <lastmod>2022-12-06T16:43:40+01:00</lastmod>
   </url><url>
     <loc>https://alagroy-42.github.io/tags/pwn/</loc>
+    <lastmod>2022-12-06T16:43:40+01:00</lastmod>
+  </url><url>
+    <loc>https://alagroy-42.github.io/writeups/spellbook/</loc>
+    <lastmod>2022-12-06T16:43:40+01:00</lastmod>
+  </url><url>
+    <loc>https://alagroy-42.github.io/tags/</loc>
+    <lastmod>2022-12-06T16:43:40+01:00</lastmod>
+  </url><url>
+    <loc>https://alagroy-42.github.io/writeups/</loc>
+    <lastmod>2022-12-06T16:43:40+01:00</lastmod>
+  </url><url>
+    <loc>https://alagroy-42.github.io/tags/easy/</loc>
     <lastmod>2022-12-06T13:24:27+01:00</lastmod>
   </url><url>
     <loc>https://alagroy-42.github.io/tags/ret2libc/</loc>
     <lastmod>2022-12-06T13:24:27+01:00</lastmod>
   </url><url>
     <loc>https://alagroy-42.github.io/writeups/sacred_scrolls/</loc>
-    <lastmod>2022-12-06T13:24:27+01:00</lastmod>
-  </url><url>
-    <loc>https://alagroy-42.github.io/tags/</loc>
-    <lastmod>2022-12-06T13:24:27+01:00</lastmod>
-  </url><url>
-    <loc>https://alagroy-42.github.io/writeups/</loc>
     <lastmod>2022-12-06T13:24:27+01:00</lastmod>
   </url><url>
     <loc>https://alagroy-42.github.io/tags/assembly/</loc>
@@ -84,9 +93,6 @@
     <lastmod>2022-06-14T15:42:52+02:00</lastmod>
   </url><url>
     <loc>https://alagroy-42.github.io/tags/code-vulnerability/</loc>
-    <lastmod>2022-06-14T14:53:57+02:00</lastmod>
-  </url><url>
-    <loc>https://alagroy-42.github.io/tags/medium/</loc>
     <lastmod>2022-06-14T14:53:57+02:00</lastmod>
   </url><url>
     <loc>https://alagroy-42.github.io/tags/misc/</loc>
